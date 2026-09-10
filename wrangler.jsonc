@@ -8,7 +8,11 @@
   },
   "assets": {
     "directory": ".",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/stanford",
+      "/stanford/*"
+    ]
   },
   "compatibility_flags": [
     "nodejs_compat"

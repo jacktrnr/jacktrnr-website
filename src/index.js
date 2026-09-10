@@ -1,5 +1,3 @@
-import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
-
 const PROTECTED_PATHS = ['/stanford'];
 const USERNAME = 'stanford';
 const PASSWORD = 'harmoniqs2026';

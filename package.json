@@ -1,0 +1,12 @@
+{
+  "name": "jacktrnr-website",
+  "private": true,
+  "scripts": {
+    "build": "echo \"No build step required\"",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

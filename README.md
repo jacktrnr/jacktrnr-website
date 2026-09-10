@@ -4,6 +4,9 @@ Personal website for Jackson Turner — Quantum Research Engineer at Harmoniqs.
 
 Static site, no build step. Hosted on GitHub Pages at [jacktrnr.com](https://jacktrnr.com).
 
+It can also be deployed as a Cloudflare Worker with static assets. The Worker adds
+HTTP Basic Authentication to `/stanford`.
+
 ## Files
 
 | File | Purpose |
@@ -21,6 +24,18 @@ Static site, no build step. Hosted on GitHub Pages at [jacktrnr.com](https://jac
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
+
+To preview through the Cloudflare Worker:
+
+```bash
+npm install
+npm run dev
+```
+
+## Cloudflare deployment
+
+Cloudflare's build settings should use the repository root, `npm run build` as
+the build command, and `npm run deploy` as the deploy command.
 
 ## Updating the resume
 
