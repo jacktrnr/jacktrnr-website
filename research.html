@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research — Jackson Turner</title>
+  <meta name="description" content="Research summary — spectral theory, nonlinear waves, plasma stability, quantum optimal control." />
+  <meta name="author" content="Jackson Turner" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=2" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∇</text></svg>" />
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a class="brand" href="/">
+      <span class="brand-mark">JT</span>
+      <span class="brand-name">Jackson Turner</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="/">Home</a>
+      <a href="/research.html">Research</a>
+      <a href="/#publications">Publications</a>
+      <a href="/#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section" style="padding-top: 6rem;">
+      <div class="section-head">
+        <span class="section-index">01</span>
+        <h2>Research</h2>
+      </div>
+      <div class="prose">
+        <p>
+          My research centers on the spectral theory of differential operators
+          and its applications — understanding how the spectrum of a linear
+          operator controls the existence, stability, and dynamics of physical
+          states, and building the numerical solvers that make that understanding
+          computable.
+        </p>
+
+        <h3>Nonlinear waves and scattering resonances</h3>
+        <p>
+          My PhD dissertation (Columbia, 2026; advised by
+          <a href="https://www.columbia.edu/~miw2103/" target="_blank" rel="noopener">Michael I. Weinstein</a>)
+          establishes a new mechanism for coherent structure formation in
+          nonlinear Schrödinger / Gross–Pitaevskii equations. Classical
+          bifurcation theory (Rose–Weinstein) constructs localized bound states
+          from <em>L</em><sup>2</sup> eigenvalues of the linear potential. We
+          showed that bound states can also bifurcate from the <em>continuous
+          spectrum</em>, at energies where the linear operator has scattering
+          resonances — poles of the analytically continued reflection coefficient
+          on <em>i</em>ℝ. These resonance-induced states emerge at a
+          positive mass threshold and are orbitally stable, with stability
+          decided in closed form from resonance functionals via the
+          Grillakis–Shatah–Strauss variational framework.
+        </p>
+        <p>
+          A companion paper extends the stability and instability analysis to
+          general focusing nonlinearities, establishing sharp criteria that
+          determine orbital stability from the slope of the mass-energy curve
+          at the bifurcation point. Both papers are joint with M. I. Weinstein.
+          Supported by the NSF and the Simons Foundation.
+        </p>
+
+        <h3>Spectral geometry</h3>
+        <p>
+          At Utah I worked on eigenvalue optimization: choosing a flat torus
+          (a quotient of ℝ<sup><em>n</em></sup> by a lattice) that maximizes
+          its Laplacian eigenvalues under a volume constraint, connecting
+          extremal lattice configurations to classical sphere-packing problems
+          (<em>SIAM J. Appl. Algebra Geom.</em>, 2023, with C.-Y. Kao and
+          B. Osting). Separately, I developed a mesh-free spectral expansion
+          method for the Laplace–Beltrami operator on curved manifolds,
+          reducing the eigenproblem to a structured matrix pencil with provable
+          convergence (with E. Cherkaev and D. Wang).
+        </p>
+
+        <h3>Plasma stability and MHD</h3>
+        <p>
+          At Zap Energy I built an eigenvalue solver in Julia that tracks
+          embedded eigenvalues through bifurcations via predictor-corrector
+          continuation with arclength parameterization, achieving a 720×
+          speedup over the existing pipeline. This solver enabled a spectral
+          analysis of the sheared-flow Z pinch in the complex-frequency plane,
+          where the analytic dispersion function reveals how discrete modes
+          emerge from and interact with the flow-shifted continuous spectrum —
+          identifying a new class of shear-driven instabilities that dominate
+          the ideal MHD spectrum (with D. Crews; arXiv:2608.00291).
+        </p>
+
+        <h3>Quantum optimal control</h3>
+        <p>
+          At Harmoniqs I design control protocols for neutral-atom and
+          trapped-ion quantum hardware, working on problems in atom transport,
+          optical tweezer manipulation, and entangling-gate synthesis. The work
+          involves building exact physical models of quantum systems,
+          formulating optimal control problems against those models, and
+          developing Julia software for simulation and optimization.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <span class="section-index">02</span>
+        <h2>Background</h2>
+      </div>
+      <div class="prose">
+        <p>
+          PhD in Applied Mathematics, Columbia University (2026). Engineering
+          Presidential Fellow. Dissertation: <em>Resonance-induced nonlinear
+          bound states and their orbital stability.</em> Thesis committee:
+          Michael Weinstein (advisor), Sebastian Will, Kui Ren, Qiang Du,
+          Liliana Borcea.
+        </p>
+        <p>
+          BS in Applied Mathematics &amp; Physics, University of Utah (2021).
+          Presidential Scholar.
+        </p>
+        <p>
+          Invited talk, Simons Collaboration on Extreme Wave Phenomena.
+          Best Poster, Joint Alabama–Florida Conference on Differential
+          Equations (2025).
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <span class="section-index">03</span>
+        <h2>Interests</h2>
+      </div>
+      <ul class="interests">
+        <li>Variational analysis and functional-analytic methods for nonlinear PDEs</li>
+        <li>Nonlinear Schrödinger equations and quantum control</li>
+        <li>Spectral and scattering theory</li>
+        <li>Bifurcation theory and numerical continuation</li>
+        <li>Hamiltonian systems analysis</li>
+        <li>Magnetohydrodynamic equations and plasma instabilities</li>
+        <li>Stability theory in fluid and plasma mechanics</li>
+        <li>GPU-accelerated scientific computing</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2026 Jackson Turner</p>
+    <p class="footer-note">Quantum Research Scientist &middot; Harmoniqs</p>
+  </footer>
+</body>
+</html>
