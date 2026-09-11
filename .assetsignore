@@ -1,8 +1,7 @@
-node_modules/
-src/
-package.json
-package-lock.json
-wrangler.jsonc
-README.md
-CNAME
+.git
+node_modules
+.wrangler
 resume.tex
+resume.log
+resume.aux
+resume.out
