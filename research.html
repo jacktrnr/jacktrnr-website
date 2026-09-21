@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Research — Jackson Turner</title>
-  <meta name="description" content="Research summary — spectral theory, nonlinear waves, plasma stability, quantum optimal control." />
+  <meta name="description" content="Research summary — spectral theory, nonlinear waves, plasma stability, neutral atom transport." />
   <meta name="author" content="Jackson Turner" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -38,34 +38,33 @@
       <div class="prose">
         <p>
           My research centers on the spectral theory of differential operators
-          and its applications — understanding how the spectrum of a linear
-          operator controls the existence, stability, and dynamics of physical
-          states, and building the numerical solvers that make that understanding
-          computable.
+          and its applications: how the spectrum of a linear operator controls
+          the existence, stability, and dynamics of physical states, and the
+          numerical solvers that make that analysis computable.
         </p>
 
         <h3>Nonlinear waves and scattering resonances</h3>
         <p>
           My PhD dissertation (Columbia, 2026; advised by
           <a href="https://www.columbia.edu/~miw2103/" target="_blank" rel="noopener">Michael I. Weinstein</a>)
-          establishes a new mechanism for coherent structure formation in
-          nonlinear Schrödinger / Gross–Pitaevskii equations. Classical
-          bifurcation theory (Rose–Weinstein) constructs localized bound states
-          from <em>L</em><sup>2</sup> eigenvalues of the linear potential. We
-          showed that bound states can also bifurcate from the <em>continuous
-          spectrum</em>, at energies where the linear operator has scattering
-          resonances — poles of the analytically continued reflection coefficient
-          on <em>i</em>ℝ. These resonance-induced states emerge at a
-          positive mass threshold and are orbitally stable, with stability
-          decided in closed form from resonance functionals via the
-          Grillakis–Shatah–Strauss variational framework.
+          characterizes a novel class of coherent wave excitations in nonlinear
+          Schr&ouml;dinger / Gross&ndash;Pitaevskii equations: localized bound
+          states whose existence and dynamical stability arise as manifestations
+          of spontaneous symmetry breaking at scattering resonances in the
+          continuous spectrum. Classical bifurcation theory (Rose&ndash;Weinstein)
+          constructs bound states from <em>L</em><sup>2</sup> eigenvalues of the
+          linear potential. We showed that bound states also bifurcate at
+          energies where the linear operator has scattering resonances, with
+          their orbital stability decided in closed form from resonance
+          functionals via the Grillakis&ndash;Shatah&ndash;Strauss variational
+          framework.
         </p>
         <p>
           A companion paper extends the stability and instability analysis to
-          general focusing nonlinearities, establishing sharp criteria that
-          determine orbital stability from the slope of the mass-energy curve
-          at the bifurcation point. Both papers are joint with M. I. Weinstein.
-          Supported by the NSF and the Simons Foundation.
+          general focusing nonlinearities, establishing sharp criteria from the
+          slope of the mass-energy curve at the bifurcation point. Both papers
+          are joint with M. I. Weinstein. Supported by the NSF and the Simons
+          Foundation.
         </p>
 
         <h3>Spectral geometry</h3>
@@ -85,23 +84,21 @@
         <p>
           At Zap Energy I built an eigenvalue solver in Julia that tracks
           embedded eigenvalues through bifurcations via predictor-corrector
-          continuation with arclength parameterization, achieving a 720×
+          continuation with arclength parameterization, achieving a 720x
           speedup over the existing pipeline. This solver enabled a spectral
-          analysis of the sheared-flow Z pinch in the complex-frequency plane,
-          where the analytic dispersion function reveals how discrete modes
-          emerge from and interact with the flow-shifted continuous spectrum —
+          analysis of the sheared-flow Z pinch in the complex-frequency plane:
+          the analytic dispersion function reveals how discrete modes emerge
+          from and interact with the flow-shifted continuous spectrum,
           identifying a new class of shear-driven instabilities that dominate
           the ideal MHD spectrum (with D. Crews; arXiv:2608.00291).
         </p>
 
         <h3>Quantum optimal control</h3>
         <p>
-          At Harmoniqs I design control protocols for neutral-atom and
-          trapped-ion quantum hardware, working on problems in atom transport,
-          optical tweezer manipulation, and entangling-gate synthesis. The work
-          involves building exact physical models of quantum systems,
-          formulating optimal control problems against those models, and
-          developing Julia software for simulation and optimization.
+          At Harmoniqs I develop the mathematical and computational machinery
+          of neutral atom transport, including physical modeling, optimal
+          control formulation, and Julia software for simulation and
+          optimization.
         </p>
       </div>
     </section>
@@ -125,7 +122,7 @@
         </p>
         <p>
           Invited talk, Simons Collaboration on Extreme Wave Phenomena.
-          Best Poster, Joint Alabama–Florida Conference on Differential
+          Best Poster, Joint Alabama&ndash;Florida Conference on Differential
           Equations (2025).
         </p>
       </div>

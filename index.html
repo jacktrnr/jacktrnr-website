@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jackson Turner — Quantum Research Scientist</title>
   <!-- Updated: 2026-09-06 -->
-  <meta name="description" content="Jackson Turner — Quantum Research Scientist at Harmoniqs. Quantum optimal control, neutral atoms, spectral methods, nonlinear Schrödinger equations, bifurcation theory, Julia scientific computing." />
+  <meta name="description" content="Jackson Turner — Quantum Research Scientist at Harmoniqs. Mathematics and computation for neutral atom transport." />
   <meta name="author" content="Jackson Turner" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Jackson Turner — Quantum Research Scientist" />
-  <meta property="og:description" content="Quantum Research Scientist at Harmoniqs. Quantum optimal control, neutral atoms, spectral methods, NLS bifurcations, Julia." />
+  <meta property="og:description" content="Quantum Research Scientist at Harmoniqs. Mathematics and computation for neutral atom transport." />
   <meta property="og:image" content="assets/jackson-turner.jpeg" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -44,11 +44,9 @@
         <p class="eyebrow">Harmoniqs · Quantum Research Scientist</p>
         <h1>Jackson Turner</h1>
         <p class="lede">
-          I build mathematical models and computational tools for quantum control
-          at <a href="https://harmoniqs.ai" target="_blank" rel="noopener">Harmoniqs</a>,
-          working across neutral-atom and trapped-ion platforms — from
-          optimal-control pulse design and atom transport to optical tweezer
-          manipulation and entangling-gate synthesis.
+          I develop the mathematical and computational machinery of neutral
+          atom transport at
+          <a href="https://harmoniqs.ai" target="_blank" rel="noopener">Harmoniqs</a>.
         </p>
         <p class="sub">
           PhD in Applied Mathematics from Columbia University.
@@ -72,19 +70,18 @@
       </div>
       <div class="prose">
         <p>
-          Jackson recently completed his PhD in Applied Mathematics at Columbia
-          University, advised by Michael I. Weinstein, where he established a
-          new mechanism for coherent structure formation in nonlinear
-          Schr&ouml;dinger equations — localized bound states that bifurcate
-          from the continuous spectrum at scattering resonances. His work
-          spans spectral and scattering theory, bifurcation analysis, stability
-          of Hamiltonian systems, and high-accuracy numerical solvers.
+          I completed my PhD in Applied Mathematics at Columbia University,
+          advised by Michael I. Weinstein, where I characterized a novel
+          class of coherent wave excitations and their dynamical stability
+          as manifestations of spontaneous symmetry breaking in nonlinear
+          Schr&ouml;dinger equations. My broader research spans spectral and
+          scattering theory, bifurcation analysis, numerical eigenvalue
+          solvers, and spectral geometry.
         </p>
         <p>
-          Previously, he built eigenvalue solvers for plasma stability problems
-          at Zap Energy and studied spectral geometry and eigenvalue
-          optimization at Utah. At Harmoniqs he designs quantum control
-          protocols for neutral-atom and trapped-ion hardware.
+          Previously, I developed stability analysis tools for plasmas in
+          magnetic confinement fusion at Zap Energy, and studied spectral
+          geometry and eigenvalue optimization at Utah.
         </p>
         <p>
           <a href="research.html">Full research summary &rarr;</a>
@@ -129,25 +126,25 @@
           <li>
             <button class="pub-item" role="tab" aria-selected="false" aria-controls="pub-2" id="tab-2" data-target="pub-2">
               <span class="pub-item-year">2025</span>
-              <span class="pub-item-title">Resonance-induced Nonlinear Bound States</span>
+              <span class="pub-item-title">Resonance-induced nonlinear bound states</span>
             </button>
           </li>
           <li>
             <button class="pub-item" role="tab" aria-selected="false" aria-controls="pub-3" id="tab-3" data-target="pub-3">
               <span class="pub-item-year">2023</span>
-              <span class="pub-item-title">Flat Tori with Large Laplacian Eigenvalues</span>
+              <span class="pub-item-title">Flat tori with large Laplacian eigenvalues</span>
             </button>
           </li>
           <li>
             <button class="pub-item" role="tab" aria-selected="false" aria-controls="pub-4" id="tab-4" data-target="pub-4">
               <span class="pub-item-year">2022</span>
-              <span class="pub-item-title">Generalized Expansion Method for Laplace–Beltrami Eigenfunctions</span>
+              <span class="pub-item-title">Generalized expansion method for Laplace-Beltrami eigenfunctions</span>
             </button>
           </li>
           <li>
             <button class="pub-item" role="tab" aria-selected="false" aria-controls="pub-5" id="tab-5" data-target="pub-5">
               <span class="pub-item-year">2021</span>
-              <span class="pub-item-title">Expansion Method for Eigenvalue Problems</span>
+              <span class="pub-item-title">Expansion method for eigenvalue problems</span>
             </button>
           </li>
         </ol>
@@ -156,24 +153,34 @@
           <article class="pub-panel is-active" id="pub-1" role="tabpanel" aria-labelledby="tab-1">
             <p class="pub-tag">2026 · Preprint</p>
             <h3 class="pub-heading">On the ideal stability of the sheared-flow Z pinch</h3>
-            <p class="pub-meta">D. Crews &amp; J. Turner</p>
+            <p class="pub-meta">Daniel W. Crews &amp; Jackson C. Turner</p>
             <p class="pub-abstract">
-              Sheared-flow Z-pinch stability has been studied in ideal MHD
-              mostly through growth rates, which suggest that even
-              trans-Alfvénic flow fails to suppress the kink. We instead compute
-              the analytic dispersion function in the complex-frequency plane,
-              where regularization splits it into adiabatic and resonant parts
-              that show how discrete modes emerge from and interact with the
-              continuous spectrum. The Doppler-shifted flow continuum overlaps
-              the interchange branch at all wavenumbers, so even sub-Alfvénic
-              shear stabilizes profiles modestly past the interchange
-              threshold; the kink is shielded by a frequency gap, and
-              trans-Alfvénic flow is needed to shift the continuum into
-              resonance with it — a geometric picture of the stabilization
-              threshold. Shear-driven modes (reflection modes and an acoustic
-              kink) appear at that same threshold and dominate the ideal
-              spectrum, so the ultimate stability of the sheared-flow Z pinch
-              rests on non-ideal physics.
+              Sheared-flow Z-pinch stability has been studied within ideal MHD
+              primarily through growth rate calculations, which find that even
+              trans-Alfv&eacute;nic sheared flows apparently fail to suppress the
+              kink instability. Trans-Alfv&eacute;nic sheared flow does stabilize
+              the MHD kink but also excites shear-driven instabilities
+              characteristic of high-Reynolds-number supersonic flow. This
+              distinction is evident from the dispersion relations underlying the
+              growth rates, computed here as the analytic dispersion function in
+              the complex-frequency plane. Regularization splits this function
+              into adiabatic and resonant parts describing how discrete modes
+              emerge from and interact with the continuous spectrum. The
+              Doppler-shifted flow continuum interacts with the interchange and
+              kink instabilities in distinct ways. For interchange, the continuum
+              overlaps the instability branch at all wavenumbers, so even
+              sub-Alfv&eacute;nic sheared flow stabilizes profiles modestly beyond
+              the interchange threshold. The kink, by contrast, is shielded from
+              the continuum by a frequency gap, and trans-Alfv&eacute;nic flow is
+              required to Doppler-shift the continuum into resonance with it,
+              giving a geometric picture of the stabilization threshold. But
+              shear-driven instabilities arise at this same threshold, including
+              reflection modes and an acoustic kink. It is these shear-driven
+              modes, not the original MHD instabilities, that dominate the
+              ideal-MHD spectrum in trans-Alfv&eacute;nic conditions. The ideal
+              analysis thus describes the stabilization mechanism while showing
+              that the stability of the sheared-flow Z pinch ultimately rests on
+              non-ideal physics, including finite orbit width and dissipation.
             </p>
             <div class="pub-access">
               <a class="pub-btn" href="https://arxiv.org/abs/2608.00291" target="_blank" rel="noopener">Read on arXiv&nbsp;↗</a>
@@ -183,20 +190,26 @@
 
           <article class="pub-panel" id="pub-2" role="tabpanel" aria-labelledby="tab-2" hidden>
             <p class="pub-tag">2025 · Preprint</p>
-            <h3 class="pub-heading">Resonance-induced Nonlinear Bound States</h3>
-            <p class="pub-meta">J. Turner &amp; M. I. Weinstein</p>
+            <h3 class="pub-heading">Resonance-induced nonlinear bound states</h3>
+            <p class="pub-meta">Jackson C. Turner &amp; Michael I. Weinstein</p>
             <p class="pub-abstract">
-              We study how localized, time-periodic bound states of the nonlinear
-              Schrödinger equation can bifurcate directly from the continuous
-              spectrum at energies associated with scattering and transmission
-              resonances of the underlying linear potential. Rather than
-              requiring a pre-existing linear eigenvalue, these nonlinear bound
-              states are induced by the resonance itself: the nonlinearity
-              converts a long-lived scattering state into a genuinely localized
-              excitation. We characterize the bifurcation, the resulting soliton
-              profiles, and their dependence on the resonance structure —
-              connecting classical scattering theory to the existence of
-              coherent nonlinear waves.
+              We study nonlinear bound states &mdash; time-harmonic and spatially
+              decaying (L&sup2;) solutions &mdash; of the nonlinear
+              Schr&ouml;dinger / Gross&ndash;Pitaevskii equations (NLS/GP) with a
+              compactly supported linear potential. Such solutions are known to
+              bifurcate from the L&sup2; bound states of an underlying
+              Schr&ouml;dinger operator H<sub>V</sub> = &minus;&part;<sub>x</sub>&sup2; + V.
+              In this article we prove an extension of this result: for the 1D
+              NLS/GP, nonlinear bound states also arise via bifurcation from the
+              scattering resonance states and transmission resonance states of
+              H<sub>V</sub>, associated with the poles and zeros, respectively, of
+              the reflection coefficients, r<sub>&plusmn;</sub>(k), of H<sub>V</sub>.
+              The corresponding resonance states are non-decaying and only
+              L&sup2;<sub>loc</sub>. In contrast to nonlinear states arising from
+              L&sup2; bound states of H<sub>V</sub>, these resonance bifurcations
+              initiate at a strictly positive L&sup2; threshold which is
+              determined by the position of the complex scattering resonance pole
+              or transmission resonance zero.
             </p>
             <div class="pub-access">
               <a class="pub-btn" href="https://arxiv.org/abs/2510.19538" target="_blank" rel="noopener">Read on arXiv&nbsp;↗</a>
@@ -207,37 +220,45 @@
 
           <article class="pub-panel" id="pub-3" role="tabpanel" aria-labelledby="tab-3" hidden>
             <p class="pub-tag">2023 · Journal</p>
-            <h3 class="pub-heading">Flat Tori with Large Laplacian Eigenvalues</h3>
-            <p class="pub-meta">SIAM Journal on Applied Algebra and Geometry</p>
+            <h3 class="pub-heading">Flat tori with large Laplacian eigenvalues in dimensions up to eight</h3>
+            <p class="pub-meta">Chiu-Yen Kao, Braxton Osting &amp; Jackson C. Turner</p>
             <p class="pub-abstract">
-              This work studies the shape optimization problem of choosing a
-              flat torus — a quotient of Euclidean space by a lattice — that
-              maximizes its Laplace eigenvalues under a volume constraint. We
-              analyze how the optimal lattice geometry changes with dimension,
-              construct and certify optimizers in dimensions up to eight, and
-              relate the extremal configurations to classical lattice-packing
-              problems. The results give sharp, explicit examples in the
-              geometry of the Laplacian spectrum.
+              We consider the optimization problem of maximizing the k-th
+              Laplacian eigenvalue, &lambda;<sub>k</sub>, over flat d-dimensional
+              tori of fixed volume. For k=1, this problem is equivalent to the
+              densest lattice sphere packing problem. For larger k, this is
+              equivalent to the NP-hard problem of finding the d-dimensional
+              (dual) lattice with longest k-th shortest lattice vector. As a
+              result of extensive computations, for d &le; 8, we obtain a
+              sequence of flat tori, T<sub>k,d</sub>, each of volume one, such
+              that the k-th Laplacian eigenvalue of T<sub>k,d</sub> is very
+              large; for each (finite) k the k-th eigenvalue exceeds the value
+              in (the k &rarr; &infin; asymptotic) Weyl's law by a factor
+              between 1.54 and 2.01, depending on the dimension. Stationarity
+              conditions are derived and numerically verified for T<sub>k,d</sub>
+              and we describe the degeneration of the tori as k &rarr; &infin;.
             </p>
             <div class="pub-access">
-              <a class="pub-btn" href="https://epubs.siam.org/journal/sjaabq" target="_blank" rel="noopener">View journal&nbsp;↗</a>
+              <a class="pub-btn" href="https://arxiv.org/abs/2202.08351" target="_blank" rel="noopener">Read on arXiv&nbsp;↗</a>
+              <a class="pub-btn" href="https://epubs.siam.org/journal/sjaabq" target="_blank" rel="noopener">SIAM JAAG&nbsp;↗</a>
               <span class="pub-cite">SIAM J. Appl. Algebra Geom.</span>
             </div>
           </article>
 
           <article class="pub-panel" id="pub-4" role="tabpanel" aria-labelledby="tab-4" hidden>
             <p class="pub-tag">2022 · Preprint</p>
-            <h3 class="pub-heading">A Generalized Expansion Method for Computing Laplace–Beltrami Eigenfunctions</h3>
-            <p class="pub-meta">Numerical spectral geometry on manifolds</p>
+            <h3 class="pub-heading">A generalized expansion method for computing Laplace-Beltrami eigenfunctions on manifolds</h3>
+            <p class="pub-meta">Jackson C. Turner, Elena Cherkaev &amp; Dong Wang</p>
             <p class="pub-abstract">
-              We present a spectral expansion method for computing eigenvalues
-              and eigenfunctions of the Laplace–Beltrami operator on curved
-              domains and manifolds. By expanding in a well-chosen global basis
-              and reducing the eigenproblem to a structured matrix pencil, the
-              method achieves high accuracy for smooth geometries while avoiding
-              the mesh-generation overhead of finite-element approaches. We
-              demonstrate convergence and accuracy across a range of model
-              geometries.
+              Eigendecomposition of the Laplace-Beltrami operator is
+              instrumental for a variety of applications from physics to data
+              science. We develop a numerical method of computation of the
+              eigenvalues and eigenfunctions of the Laplace-Beltrami operator on
+              a smooth bounded domain based on the relaxation to the
+              Schr&ouml;dinger operator with finite potential on a Riemannian
+              manifold and projection in a special basis. We prove spectral
+              exactness of the method and provide examples of calculated results
+              and applications, particularly, in quantum billiards on manifolds.
             </p>
             <div class="pub-access">
               <a class="pub-btn" href="https://arxiv.org/abs/2210.10982" target="_blank" rel="noopener">Read on arXiv&nbsp;↗</a>
@@ -247,15 +268,13 @@
 
           <article class="pub-panel" id="pub-5" role="tabpanel" aria-labelledby="tab-5" hidden>
             <p class="pub-tag">2021 · Thesis</p>
-            <h3 class="pub-heading">Expansion Method for Eigenvalue Problems</h3>
-            <p class="pub-meta">Honors Thesis · University of Utah</p>
+            <h3 class="pub-heading">Expansion method for eigenvalue problems</h3>
+            <p class="pub-meta">Jackson C. Turner &middot; Honors Thesis &middot; University of Utah</p>
             <p class="pub-abstract">
-              My undergraduate honors thesis introduces the expansion-based
-              approach to Laplacian eigenvalue problems that later grew into the
-              Laplace–Beltrami work above. It develops the method from first
-              principles, establishes its accuracy on canonical domains, and
-              lays out the numerical foundations for computing eigenfunctions of
-              the Laplacian operator.
+              Develops the expansion-based approach to Laplacian eigenvalue
+              problems from first principles, establishes accuracy on canonical
+              domains, and lays out the numerical foundations that grew into the
+              Laplace-Beltrami work above.
             </p>
             <div class="pub-access">
               <span class="pub-cite">University of Utah</span>
