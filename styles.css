@@ -308,6 +308,19 @@ main {
 .pub-panel[hidden] { display: none; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
+.pub-figure {
+  margin: 0 0 1.2rem;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.pub-figure img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 .pub-tag {
   font-family: var(--mono);
   font-size: .74rem; letter-spacing: .06em; text-transform: uppercase;
