@@ -13,8 +13,8 @@ HTTP Basic Authentication to `/stanford`.
 |------|---------|
 | `index.html` | The page |
 | `styles.css` | All styling |
-| `resume.pdf` | CV (compiled from `resume.tex`) |
-| `resume.tex` | CV source (LaTeX) |
+| `turner_resume-oct2026.pdf` | CV (compiled from `turner_resume-oct2026.tex`) |
+| `turner_resume-oct2026.tex` | CV source (LaTeX) |
 | `assets/` | Images |
 | `CNAME` | Custom domain for GitHub Pages |
 
@@ -40,7 +40,7 @@ the build command, and `npm run deploy` as the deploy command.
 ## Updating the resume
 
 ```bash
-pdflatex resume.tex
+pdflatex turner_resume-oct2026.tex
 ```
 
-Commit the regenerated `resume.pdf`.
+Commit the regenerated `turner_resume-oct2026.pdf`.
