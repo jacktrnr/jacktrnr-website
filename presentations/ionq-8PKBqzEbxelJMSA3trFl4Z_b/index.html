@@ -9,11 +9,55 @@
 <dialog id="dialog"><header><span id="video-status">Presentation video</span><button id="close">Close ✕</button></header><video id="video" controls playsinline loop></video></dialog>
 <script>
 const salt=Uint8Array.from(atob('BdlF8k7E+rWVmaVbxeEv9Q=='),c=>c.charCodeAt(0)),iterations=600000;
-let key,slides=[],current=0,slideUrl=null,videoUrl=null,requestId=0,videoRequestId=0;
+let key,slides=[],current=0,displayed=-1,videoUrl=null,requestId=0,videoRequestId=0;
+const slideCache=new Map(),maxCachedSlides=7;
 const form=document.querySelector('#unlock'),error=document.querySelector('#error'),slide=document.querySelector('#slide'),img=document.querySelector('#image'),dialog=document.querySelector('#dialog'),video=document.querySelector('#video');
 async function decrypt(path){const response=await fetch(path);if(!response.ok)throw new Error('Failed to load '+path);const data=await response.arrayBuffer();if(data.byteLength<29)throw new Error('Incomplete encrypted file');const iv=data.slice(0,12),cipher=data.slice(12);return crypto.subtle.decrypt({name:'AES-GCM',iv},key,cipher)}
 form.addEventListener('submit',async event=>{event.preventDefault();error.textContent='Opening…';const button=form.querySelector('button');button.disabled=true;try{const pass=document.querySelector('#password').value;const input=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);key=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations,hash:'SHA-256'},input,{name:'AES-GCM',length:256},false,['decrypt']);const decoded=await decrypt('manifest.bin');const manifest=JSON.parse(new TextDecoder().decode(decoded));slides=manifest.slides;document.querySelector('#password').value='';form.hidden=true;document.querySelector('#bar').hidden=false;document.querySelector('#main').hidden=false;await show((parseInt(location.hash.slice(1))||1)-1)}catch(err){console.error(err);key=null;error.textContent='Could not unlock. Check the password and try again.'}finally{button.disabled=false}});
-async function show(n){current=Math.max(0,Math.min(slides.length-1,n));const active=++requestId;const stem=String(current+1).padStart(3,'0');document.querySelector('#count').textContent=(current+1)+' / '+slides.length;slide.querySelectorAll('.hotspot').forEach(x=>x.remove());location.hash=String(current+1);try{const bytes=await decrypt('slides/'+stem+'.bin');if(active!==requestId)return;const fresh=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));if(slideUrl)URL.revokeObjectURL(slideUrl);slideUrl=fresh;img.src=fresh;img.alt='Slide '+(current+1);for(const link of slides[current]){const b=document.createElement('button');b.className='hotspot';b.title=link.page!==undefined?'Go to slide':'Play video';b.setAttribute('aria-label',b.title);for(const k of ['left','top','width','height'])b.style[k]=link[k]+'%';b.onclick=()=>{if(link.page!==undefined){show(link.page);return}playVideo(link.url)};slide.appendChild(b)}}catch(err){console.error(err);document.querySelector('#count').textContent='Could not load slide'}}
+function trimSlideCache(){
+  const removable=[...slideCache.entries()].filter(([index,entry])=>entry.ready&&index!==current&&index!==displayed)
+    .sort((a,b)=>Math.abs(b[0]-current)-Math.abs(a[0]-current));
+  while(slideCache.size>maxCachedSlides&&removable.length){
+    const [index,entry]=removable.shift();
+    if(slideCache.get(index)!==entry)continue;
+    slideCache.delete(index);URL.revokeObjectURL(entry.url);
+  }
+}
+function loadSlide(index){
+  const existing=slideCache.get(index);if(existing)return existing.promise;
+  const entry={ready:false,url:null,image:null,promise:null};
+  entry.promise=(async()=>{
+    const stem=String(index+1).padStart(3,'0');
+    const bytes=await decrypt('slides/'+stem+'.bin');
+    const url=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));
+    entry.url=url;
+    try{const image=new Image();image.src=url;await image.decode();entry.image=image;entry.ready=true;return entry}
+    catch(err){URL.revokeObjectURL(url);entry.url=null;throw err}
+  })().catch(err=>{if(slideCache.get(index)===entry)slideCache.delete(index);throw err});
+  slideCache.set(index,entry);return entry.promise;
+}
+function prefetchNearby(index){
+  for(const offset of [1,-1,2,-2,3]){
+    const target=index+offset;if(target<0||target>=slides.length)continue;
+    loadSlide(target).then(trimSlideCache).catch(err=>console.warn('Slide preload failed',err));
+  }
+}
+async function show(n){
+  current=Math.max(0,Math.min(slides.length-1,n));const target=current,active=++requestId;
+  document.querySelector('#count').textContent=(target+1)+' / '+slides.length;
+  slide.querySelectorAll('.hotspot').forEach(x=>x.remove());location.hash=String(target+1);
+  try{
+    const entry=await loadSlide(target);if(active!==requestId){trimSlideCache();return}
+    img.src=entry.url;img.alt='Slide '+(target+1);displayed=target;
+    for(const link of slides[target]){
+      const b=document.createElement('button');b.className='hotspot';
+      b.title=link.page!==undefined?'Go to slide':'Play video';b.setAttribute('aria-label',b.title);
+      for(const k of ['left','top','width','height'])b.style[k]=link[k]+'%';
+      b.onclick=()=>{if(link.page!==undefined){show(link.page);return}playVideo(link.url)};slide.appendChild(b);
+    }
+    prefetchNearby(target);trimSlideCache();
+  }catch(err){if(active===requestId){console.error(err);document.querySelector('#count').textContent='Could not load slide'}}
+}
 async function playVideo(url){const active=++videoRequestId;document.querySelector('#video-status').textContent='Loading video…';dialog.showModal();try{const bytes=await decrypt(url);if(active!==videoRequestId||!dialog.open)return;if(videoUrl)URL.revokeObjectURL(videoUrl);videoUrl=URL.createObjectURL(new Blob([bytes],{type:'video/mp4'}));video.src=videoUrl;document.querySelector('#video-status').textContent='Presentation video';video.play().catch(()=>{})}catch(err){console.error(err);document.querySelector('#video-status').textContent='Could not load video'}}
 function close(){videoRequestId++;video.pause();video.removeAttribute('src');video.load();if(videoUrl)URL.revokeObjectURL(videoUrl);videoUrl=null;dialog.close()}document.querySelector('#prev').onclick=()=>show(current-1);document.querySelector('#next').onclick=()=>show(current+1);document.querySelector('#close').onclick=close;document.querySelector('#fullscreen').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen()};dialog.addEventListener('cancel',e=>{e.preventDefault();close()});document.addEventListener('keydown',e=>{if(dialog.open||form.hidden===false)return;if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();show(current+1)}if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();show(current-1)}});
 </script></body></html>
