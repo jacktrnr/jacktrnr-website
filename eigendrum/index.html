@@ -201,7 +201,7 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="ex:rect">Rectangle 2:1</option>
             </optgroup>
             <optgroup label="Fitted mesh (no closed form)">
-              <option value="fem:bugle" selected>Bugle</option>
+              <option value="fem:horn" selected>Spiral horn</option>
               <option value="fem:slant">“Slanted” triangle</option>
               <option value="fem:mslant">“More slanted” triangle</option>
               <option value="fem:tall">Tall isosceles triangle</option>
@@ -443,18 +443,25 @@ function ringPt(sh, th) {
   return [sh.c[0] + d * Math.cos(th), sh.c[1] - d * Math.sin(th)];
 }
 // A tube: centerline made of lines and arcs (tangent-continuous), half-width w(s); sampled at uniform arclength.
-function tubeGeom(parts, wfun) {
+function tubeGeom(parts, wfun, rowS, fit) {
   const raw = [];
   for (const q of parts) {
     if (q.line) { const [ax, ay, bx, by] = q.line, n = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.002); for (let i = raw.length ? 1 : 0; i <= n; i++) raw.push([ax + (bx - ax) * i / n, ay + (by - ay) * i / n]); }
+    else if (q.spiral) { const [cx, cy, a, b, t0, t1] = q.spiral, n = Math.ceil(Math.abs(t1 - t0) * a * Math.exp(b * Math.max(t0, t1)) / 0.0015); for (let i = raw.length ? 1 : 0; i <= n; i++) { const t = t0 + (t1 - t0) * i / n, r = a * Math.exp(b * t); raw.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]); } }
     else { const [cx, cy, r, a0, a1] = q.arc, n = Math.ceil(Math.abs(a1 - a0) * r / 0.002); for (let i = 1; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; raw.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } }
   }
   const S = [0]; for (let i = 1; i < raw.length; i++) S.push(S[i - 1] + Math.hypot(raw[i][0] - raw[i - 1][0], raw[i][1] - raw[i - 1][1]));
   const L = S[S.length - 1], N = Math.ceil(L / 0.002), cl = []; let j = 0;
   for (let i = 0; i <= N; i++) { const sv = L * i / N; while (j < S.length - 2 && S[j + 1] < sv) j++; const t = (sv - S[j]) / (S[j + 1] - S[j] || 1); cl.push([raw[j][0] + (raw[j + 1][0] - raw[j][0]) * t, raw[j][1] + (raw[j + 1][1] - raw[j][1]) * t, sv]); }
   const at = (sv) => { const u = Math.max(0, Math.min(N, sv / L * N)), i = Math.min(N - 1, Math.floor(u)), t = u - i, a = cl[i], b = cl[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], dl = Math.hypot(dx, dy) || 1; return { x: a[0] + dx * t, y: a[1] + dy * t, nx: -dy / dl, ny: dx / dl, w: wfun(sv, a[0] + dx * t, a[1] + dy * t) }; };
-  const toU = (x, y) => [(x + 1) / 2, (y + 1) / 2];
-  return { type: 'tube', L, at, toU, center: toU(0, 0), analytic: null };
+  let toU = (x, y) => [(x + 1) / 2, (y + 1) / 2];
+  if (fit) { // scale and center the whole tube (walls included) into the box
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (let i = 0; i <= 1200; i++) { const c = at(L * i / 1200); for (const t of [-1, 1]) { const x = c.x + t * c.w * c.nx, y = c.y + t * c.w * c.ny; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }
+    const sc = fit / Math.max(x1 - x0, y1 - y0), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    toU = (x, y) => [0.5 + (x - mx) * sc, 0.5 + (y - my) * sc];
+  }
+  return { type: 'tube', L, at, toU, rowS: rowS || ((u) => u * L), center: toU(0, 0), analytic: null };
 }
 function tubePoint(g, sv, t) { const c = g.at(sv); return g.toU(c.x + t * c.w * c.nx, c.y + t * c.w * c.ny); }
 function geomPolys(g) {
@@ -494,21 +501,19 @@ function incenter(A, B, C) {
 function thesisTri(shift, h, s) { const y0 = 0.5 + h * s / 2, A = [0.5 - s / 2, y0], B = [0.5 + s / 2, y0], C = [0.5 - shift * s, y0 - h * s]; return polyGeom([A, B, C], incenter(A, B, C), null); }
 function ngon(n, R) { const V = []; for (let i = 0; i < n; i++) { const th = -Math.PI / 2 + Math.PI / n + TAU * i / n; V.push([0.5 + R * Math.cos(th), 0.5 - R * Math.sin(th)]); } return polyGeom(V, [0.5, 0.5], null); }
 function reflTri(V0, V1, V2, n) { return polyGeom([V0, V1, V2], incenter(V0, V1, V2), { kind: 'refl', V0, V1, V2, n }); }
-// The bugle: a mouthpiece cup, a tube that widens slowly through two wraps, and a flared bell.
-function bugleGeom() {
-  const D = Math.PI / 2, y1 = 0.73, y2 = 0.13, y3 = -0.47, R = 0.3;
-  const parts = [{ line: [-0.98, y1, 0.5, y1] }, { arc: [0.5, y1 - R, R, D, -D] }, { line: [0.5, y2, -0.5, y2] }, { arc: [-0.5, y2 - R, R, D, 3 * D] }, { line: [-0.5, y3, 0.95, y3] }];
-  const sTop = 1.48 + Math.PI * R + 1.0 + Math.PI * R; // where the last run (the one that becomes the bell) starts
-  return tubeGeom(parts, (sv, x, y) => {
-    let w = 0.062 + 0.058 * Math.min(1, sv / sTop) ** 1.2;           // slow, steady widening through both wraps
-    if (sv < 0.1) w = Math.max(w, 0.1 * Math.sqrt(Math.max(0.09, 1 - ((sv - 0.1) / 0.1) ** 2)));   // mouthpiece cup
-    else if (sv < 0.22) w = Math.max(w, w + (0.1 - w) * 0.5 * (1 + Math.cos(Math.PI * (sv - 0.1) / 0.12)));
-    if (sv > sTop && x > 0.2) w += 0.26 * ((x - 0.2) / 0.75) ** 2.5;   // the bell
+// The spiral horn: a tube on a logarithmic spiral r = a e^{bθ}, as wide as a fixed fraction of r (so it tapers
+// smoothly all the way in), flaring over the last half-turn. Turns nest with ~70% of the radial space filled.
+function hornGeom() {
+  const g0 = 1.8, b = Math.log(g0) / (2 * Math.PI), r0 = 0.12, r1 = 0.75, t0 = 0, t1 = Math.log(r1 / r0) / b, c = 0.2;
+  const k = Math.sqrt(1 + b * b) / b, L = k * (r1 - r0), flareFrom = k * (r1 / Math.sqrt(g0) - r0);
+  return tubeGeom([{ spiral: [0, 0, r0, b, t0, t1] }], (sv, x, y) => {
+    const r = Math.hypot(x, y); let w = c * r;
+    if (sv > flareFrom) { const u = (sv - flareFrom) / (L - flareFrom); w *= 1 + 0.55 * u * u; }
     return w;
-  });
+  }, (u) => k * (r0 * Math.exp(b * (t0 + u * (t1 - t0))) - r0), 0.94); // rows evenly spaced in angle; fit the box
 }
 const GEOMS = {
-  bugle: { how: 'tube mesh along the centerline', make: () => bugleGeom() },
+  horn: { how: 'tube mesh along a logarithmic spiral', make: () => hornGeom() },
   disk: { how: 'Bessel J_m', make: () => ({ type: 'fan', center: [0.5, 0.5], segs: [{ type: 'arc', c: [0.5, 0.5], r: 0.45, t0: 0, t1: TAU }], analytic: { kind: 'disk', c: [0.5, 0.5], R: 0.45 } }) },
   qdisk: { how: 'Bessel J_2k', make: () => { const c = [0.08, 0.92], R = 0.84; return { type: 'fan', center: [c[0] + 0.3 * R, c[1] - 0.3 * R], segs: [line(c, [c[0] + R, c[1]]), { type: 'arc', c, r: R, t0: 0, t1: Math.PI / 2 }, line([c[0], c[1] - R], c)], analytic: { kind: 'sector', c, R, alpha: Math.PI / 2 } }; } },
   semi: { how: 'Bessel J_k', make: () => { const c = [0.5, 0.72], R = 0.45; return { type: 'fan', center: [c[0], c[1] - 0.42 * R], segs: [line([c[0] - R, c[1]], [c[0] + R, c[1]]), { type: 'arc', c, r: R, t0: 0, t1: Math.PI }], analytic: { kind: 'sector', c, R, alpha: Math.PI } }; } },
@@ -725,7 +730,7 @@ function meshTri(V, target) {
 }
 function meshTube(g, target) { // rows across the tube, marched along its length; every edge of the strip is a wall
   const nt = 19, ns = Math.max(40, Math.round(target / nt)), pos = [], bnd = [], tris = [];
-  for (let i = 0; i < ns; i++) { const sv = g.L * i / (ns - 1); for (let j = 0; j < nt; j++) { pos.push(tubePoint(g, sv, -1 + 2 * j / (nt - 1))); bnd.push(i === 0 || i === ns - 1 || j === 0 || j === nt - 1); } }
+  for (let i = 0; i < ns; i++) { const sv = g.rowS(i / (ns - 1)); for (let j = 0; j < nt; j++) { pos.push(tubePoint(g, sv, -1 + 2 * j / (nt - 1))); bnd.push(i === 0 || i === ns - 1 || j === 0 || j === nt - 1); } }
   const id = (i, j) => i * nt + j;
   for (let i = 0; i < ns - 1; i++) for (let j = 0; j < nt - 1; j++) { const a = id(i, j), b = id(i + 1, j), c = id(i + 1, j + 1), d = id(i, j + 1); if ((i + j) % 2) tris.push(a, b, c, a, c, d); else tris.push(a, b, d, b, c, d); }
   return { pos, bnd, tris };
@@ -788,11 +793,20 @@ function heatPayload(fe, map) { return { n: fe.n, rp: fe.K.rp, ci: fe.K.ci, kv: 
 function meshPayload(mesh) { const pos = new Float32Array(2 * mesh.pos.length); mesh.pos.forEach((p, i) => { pos[2 * i] = p[0]; pos[2 * i + 1] = p[1]; }); return { pos, tris: Int32Array.from(mesh.tris) }; }
 function solveFEM(g, K, R, valsOnly) {
   const t0 = performance.now(), mesh = meshGeom(g, 4000), fe = femOps(mesh);
-  const r = solveLevel(fe.op, K, null, 2e-4, 800, 24), Kout = trimK(r.theta, K), vals = F.from(r.theta.slice(0, Kout));
+  let r;
+  if (g.type === 'tube') { // strip meshes are narrow-banded: shift-invert slicing beats Chebyshev filtering here
+    const prev = audio, prevR = refine;
+    audio = { kind: 'op', op: fe.op, Y: [], lam: new F(0), sqrtM: fe.sq, xy: fe.xy, h: fe.h }; refine = null;
+    const RR = refineSync(1, K + 6);
+    r = { theta: RR.locked.map(e => e.lam), X: RR.locked.map(e => F.from(e.y)) };
+    if (valsOnly) { audio = prev; refine = prevR; }
+  } else r = solveLevel(fe.op, K, null, 2e-4, 800, 24);
+  const Kout = trimK(r.theta, K), vals = F.from(r.theta.slice(0, Kout));
   if (valsOnly) return { vals, nodes: fe.n, ms: performance.now() - t0 };
   const map = femRaster(mesh, fe.idx, R), Y = new Float32Array(Kout * fe.n);
   for (let k = 0; k < Kout; k++) { const y = r.X[k], sg = signFix(y); for (let i = 0; i < fe.n; i++) Y[k * fe.n + i] = sg * y[i] / fe.sq[i]; }
-  audio = { kind: 'op', op: fe.op, Y: r.X.slice(0, Kout), lam: vals, sqrtM: fe.sq, xy: fe.xy, h: fe.h }; refine = null;
+  const keep = g.type === 'tube' && refine && refine.op === fe.op ? refine : null;
+  audio = { kind: 'op', op: fe.op, Y: r.X.slice(0, Kout), lam: vals, sqrtM: fe.sq, xy: fe.xy, h: fe.h }; refine = keep; if (keep) keep.a = audio;
   return { vals, Y, n: fe.n, mask: map.mask, R, K: Kout, nodes: fe.n, mesh: meshPayload(mesh), heat: heatPayload(fe, map), hmesh: fe.h, ms: performance.now() - t0, labels: null };
 }
 
@@ -1336,7 +1350,7 @@ const presets = {
   // a box split by a thin wall with two narrow slits
   slit: (x, y) => Math.abs(x) < 0.95 && Math.abs(y) < 0.7 && !(Math.abs(x + 0.45) < 0.025 && !(Math.abs(y - 0.16) < 0.04 || Math.abs(y + 0.16) < 0.04)),
 };
-let currentPreset = 'bugle';
+let currentPreset = 'horn';
 function applyPreset(name) {
   currentPreset = name; domain = null; G = Gp; const f = presets[name]; mask = new Uint8Array(G * G);
   for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) mask[y * G + x] = f((x + 0.5) / G * 2 - 1, (y + 0.5) / G * 2 - 1) ? 1 : 0;
@@ -2140,7 +2154,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors
 new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 readColors();
-loadSmooth('bugle');
+loadSmooth('horn');
 setTab('drum');
 drawSpectrum(); showDamping();
 requestAnimationFrame(frame);
