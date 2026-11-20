@@ -188,7 +188,8 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="ex:square">Square</option>
               <option value="ex:rect">Rectangle 2:1</option>
             </optgroup>
-            <optgroup label="From my undergrad thesis (mesh)">
+            <optgroup label="Fitted mesh (no closed form)">
+              <option value="fem:bugle" selected>Bugle</option>
               <option value="fem:slant">“Slanted” triangle</option>
               <option value="fem:mslant">“More slanted” triangle</option>
               <option value="fem:tall">Tall isosceles triangle</option>
@@ -200,7 +201,6 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="fem:hole4">Disk with square hole ¼</option>
             </optgroup>
             <optgroup label="Pixel shapes (editable)">
-              <option value="px:bugle" selected>Bugle</option>
               <option value="px:L">L-shape</option>
               <option value="px:square">Square</option>
               <option value="px:disk">Disk</option>
@@ -424,7 +424,28 @@ function ringPt(sh, th) {
   const d = sh.half / Math.max(Math.abs(Math.cos(th)), Math.abs(Math.sin(th)));
   return [sh.c[0] + d * Math.cos(th), sh.c[1] - d * Math.sin(th)];
 }
+// A tube: centerline made of lines and arcs (tangent-continuous), half-width w(s); sampled at uniform arclength.
+function tubeGeom(parts, wfun) {
+  const raw = [];
+  for (const q of parts) {
+    if (q.line) { const [ax, ay, bx, by] = q.line, n = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.002); for (let i = raw.length ? 1 : 0; i <= n; i++) raw.push([ax + (bx - ax) * i / n, ay + (by - ay) * i / n]); }
+    else { const [cx, cy, r, a0, a1] = q.arc, n = Math.ceil(Math.abs(a1 - a0) * r / 0.002); for (let i = 1; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; raw.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } }
+  }
+  const S = [0]; for (let i = 1; i < raw.length; i++) S.push(S[i - 1] + Math.hypot(raw[i][0] - raw[i - 1][0], raw[i][1] - raw[i - 1][1]));
+  const L = S[S.length - 1], N = Math.ceil(L / 0.002), cl = []; let j = 0;
+  for (let i = 0; i <= N; i++) { const sv = L * i / N; while (j < S.length - 2 && S[j + 1] < sv) j++; const t = (sv - S[j]) / (S[j + 1] - S[j] || 1); cl.push([raw[j][0] + (raw[j + 1][0] - raw[j][0]) * t, raw[j][1] + (raw[j + 1][1] - raw[j][1]) * t, sv]); }
+  const at = (sv) => { const u = Math.max(0, Math.min(N, sv / L * N)), i = Math.min(N - 1, Math.floor(u)), t = u - i, a = cl[i], b = cl[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], dl = Math.hypot(dx, dy) || 1; return { x: a[0] + dx * t, y: a[1] + dy * t, nx: -dy / dl, ny: dx / dl, w: wfun(sv, a[0] + dx * t, a[1] + dy * t) }; };
+  const toU = (x, y) => [(x + 1) / 2, (y + 1) / 2];
+  return { type: 'tube', L, at, toU, center: toU(0, 0), analytic: null };
+}
+function tubePoint(g, sv, t) { const c = g.at(sv); return g.toU(c.x + t * c.w * c.nx, c.y + t * c.w * c.ny); }
 function geomPolys(g) {
+  if (g.type === 'tube') {
+    const M = 900, o = [];
+    for (let i = 0; i <= M; i++) o.push(tubePoint(g, g.L * i / M, 1));
+    for (let i = M; i >= 0; i--) o.push(tubePoint(g, g.L * i / M, -1));
+    return { outer: o, hole: null };
+  }
   if (g.type === 'ring') {
     const N = 512, o = [], h = [];
     for (let i = 0; i < N; i++) { const th = TAU * i / N; o.push(ringPt(g.outer, th)); h.push(ringPt(g.inner, th)); }
@@ -455,7 +476,21 @@ function incenter(A, B, C) {
 function thesisTri(shift, h, s) { const y0 = 0.5 + h * s / 2, A = [0.5 - s / 2, y0], B = [0.5 + s / 2, y0], C = [0.5 - shift * s, y0 - h * s]; return polyGeom([A, B, C], incenter(A, B, C), null); }
 function ngon(n, R) { const V = []; for (let i = 0; i < n; i++) { const th = -Math.PI / 2 + Math.PI / n + TAU * i / n; V.push([0.5 + R * Math.cos(th), 0.5 - R * Math.sin(th)]); } return polyGeom(V, [0.5, 0.5], null); }
 function reflTri(V0, V1, V2, n) { return polyGeom([V0, V1, V2], incenter(V0, V1, V2), { kind: 'refl', V0, V1, V2, n }); }
+// The bugle: a mouthpiece cup, a tube that loops twice, and a flared bell.
+function bugleGeom() {
+  const D = Math.PI / 2, sb0 = { v: 0 };
+  const parts = [{ line: [-0.975, 0.45, 0.45, 0.45] }, { arc: [0.45, 0.25, 0.2, D, -D] }, { line: [0.45, 0.05, -0.45, 0.05] }, { arc: [-0.45, -0.15, 0.2, D, 3 * D] }, { line: [-0.45, -0.35, 0.95, -0.35] }];
+  const g = tubeGeom(parts, (sv, x, y) => {
+    let w = 0.05;
+    if (sv < 0.075) w = 0.075 * Math.sqrt(Math.max(0.09, 1 - ((sv - 0.075) / 0.075) ** 2));
+    else if (sv < 0.16) w = 0.05 + 0.025 * 0.5 * (1 + Math.cos(Math.PI * (sv - 0.075) / 0.085));
+    if (y < -0.3 && x > 0.25) w += 0.23 * ((x - 0.25) / 0.7) ** 2.5;
+    return w;
+  });
+  return g;
+}
 const GEOMS = {
+  bugle: { how: 'tube mesh along the centerline', make: () => bugleGeom() },
   disk: { how: 'Bessel J_m', make: () => ({ type: 'fan', center: [0.5, 0.5], segs: [{ type: 'arc', c: [0.5, 0.5], r: 0.45, t0: 0, t1: TAU }], analytic: { kind: 'disk', c: [0.5, 0.5], R: 0.45 } }) },
   qdisk: { how: 'Bessel J_2k', make: () => { const c = [0.08, 0.92], R = 0.84; return { type: 'fan', center: [c[0] + 0.3 * R, c[1] - 0.3 * R], segs: [line(c, [c[0] + R, c[1]]), { type: 'arc', c, r: R, t0: 0, t1: Math.PI / 2 }, line([c[0], c[1] - R], c)], analytic: { kind: 'sector', c, R, alpha: Math.PI / 2 } }; } },
   semi: { how: 'Bessel J_k', make: () => { const c = [0.5, 0.72], R = 0.45; return { type: 'fan', center: [c[0], c[1] - 0.42 * R], segs: [line([c[0] - R, c[1]], [c[0] + R, c[1]]), { type: 'arc', c, r: R, t0: 0, t1: Math.PI }], analytic: { kind: 'sector', c, R, alpha: Math.PI } }; } },
@@ -670,7 +705,15 @@ function meshTri(V, target) {
   for (let i = 0; i < n; i++) for (let j = 0; j < n - i; j++) { tris.push(id(i, j), id(i + 1, j), id(i, j + 1)); if (i + j < n - 1) tris.push(id(i + 1, j), id(i + 1, j + 1), id(i, j + 1)); }
   return { pos, bnd, tris };
 }
+function meshTube(g, target) { // rows across the tube, marched along its length; every edge of the strip is a wall
+  const nt = 17, ns = Math.max(40, Math.round(target / nt)), pos = [], bnd = [], tris = [];
+  for (let i = 0; i < ns; i++) { const sv = g.L * i / (ns - 1); for (let j = 0; j < nt; j++) { pos.push(tubePoint(g, sv, -1 + 2 * j / (nt - 1))); bnd.push(i === 0 || i === ns - 1 || j === 0 || j === nt - 1); } }
+  const id = (i, j) => i * nt + j;
+  for (let i = 0; i < ns - 1; i++) for (let j = 0; j < nt - 1; j++) { const a = id(i, j), b = id(i + 1, j), c = id(i + 1, j + 1), d = id(i, j + 1); if ((i + j) % 2) tris.push(a, b, c, a, c, d); else tris.push(a, b, d, b, c, d); }
+  return { pos, bnd, tris };
+}
 function meshGeom(g, target) {
+  if (g.type === 'tube') return meshTube(g, target * 1.6);
   if (g.type === 'ring') return meshRing(g, target);
   if (g.segs.length === 3 && g.segs.every(s => s.type === 'line')) return meshTri(g.segs.map(s => s.a), target);
   return meshFan(g, target);
@@ -1272,15 +1315,6 @@ const presets = {
   star: (x, y) => { const r = Math.hypot(x, y), t = Math.atan2(y, x) + Math.PI / 2; return r < 0.56 + 0.32 * Math.cos(5 * t); },
   heart: (x, y) => { const X = x * 1.2, Y = -y * 1.2 + 0.2, a = X * X + Y * Y - 1; return a * a * a - X * X * Y * Y * Y < 0; },
   dumbbell: (x, y) => Math.hypot(x - 0.5, y) < 0.4 || Math.hypot(x + 0.5, y) < 0.4 || (Math.abs(y) < 0.09 && Math.abs(x) < 0.5),
-  // a bugle: mouthpiece, a tube that loops twice, and a flared bell
-  bugle: (x, y) => {
-    const w = 0.05, seg = (ax, ay, bx, by) => { const vx = bx - ax, vy = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy))); return Math.hypot(x - ax - t * vx, y - ay - t * vy) < w; };
-    const ring = (cx, cy, r, side) => Math.abs(Math.hypot(x - cx, y - cy) - r) < w && side * (x - cx) >= 0;
-    const tube = seg(-0.84, 0.45, 0.45, 0.45) || ring(0.45, 0.25, 0.2, 1) || seg(0.45, 0.05, -0.45, 0.05) || ring(-0.45, -0.15, 0.2, -1);
-    const bell = x >= -0.45 && x <= 0.95 && Math.abs(y + 0.35) < w + (x > 0.25 ? 0.23 * ((x - 0.25) / 0.7) ** 2.5 : 0);
-    const cup = Math.hypot(x + 0.9, y - 0.45) < 0.075;
-    return tube || bell || cup;
-  },
   // a box split by a thin wall with two narrow slits
   slit: (x, y) => Math.abs(x) < 0.95 && Math.abs(y) < 0.7 && !(Math.abs(x + 0.45) < 0.025 && !(Math.abs(y - 0.16) < 0.04 || Math.abs(y + 0.16) < 0.04)),
 };
@@ -1313,7 +1347,7 @@ function drawEditor() {
   for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) if (mask[y * G + x]) ectx.fillRect(Math.floor(x * cs), Math.floor(y * cs), Math.ceil(cs), Math.ceil(cs));
   if (cs >= 5) { ectx.strokeStyle = C.grid; ectx.lineWidth = 1; ectx.beginPath(); for (let i = 1; i < G; i++) { const p = Math.round(i * cs) + 0.5; ectx.moveTo(p, 0); ectx.lineTo(p, w); ectx.moveTo(0, p); ectx.lineTo(w, p); } ectx.stroke(); }
   $('shapeMeta').textContent = `${mask.reduce((a, b) => a + b, 0).toLocaleString()} px · h = 1/${G}`;
-  $('hint').textContent = (currentPreset === 'bugle' ? 'This drum is painted on the grid. Paint or erase to make it your own, or pick another shape above. ' : '') + 'Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine. While you draw, the modes update quickly at low resolution; the full set follows when you let go.';
+  $('hint').textContent = (currentPreset === 'dumbbell' ? 'This drum is painted on the grid. Paint or erase to make it your own, or pick another shape above. ' : '') + 'Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine. While you draw, the modes update quickly at low resolution; the full set follows when you let go.';
 }
 let painting = false, last = null, eraseNow = false;
 function cellAt(c, e) { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * G, (e.clientY - r.top) / r.height * G]; }
@@ -1469,11 +1503,11 @@ function paintField(field, scale, lut, signed, ctx, canvas, offset = 0) {
   ctx.imageSmoothingEnabled = false; ctx.drawImage(off, 0, 0, w, w);
 }
 function maxAbs(field, offset = 0) { let m = 0; for (let p = 0; p < G * G; p++) { const v = Math.abs(field[offset + p]); if (v > m) m = v; } return m; }
-function drawNodal(ctx, w, r) { const o = 0, vecs = r;
+function drawNodal(ctx, w, r) { const o = 0, vecs = r, floor = 2e-3 * maxAbs(r); // skip zero crossings of numerical noise where the mode is essentially still
   const cs = w / G; ctx.strokeStyle = C.ink; ctx.globalAlpha = 0.75; ctx.lineWidth = Math.max(1, domain ? w / 300 : cs * 0.18); ctx.beginPath();
   if (!domain) {
     for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
-      const p = y * G + x; if (!mask[p]) continue; const a = vecs[o + p];
+      const p = y * G + x; if (!mask[p]) continue; const a = vecs[o + p]; if (Math.abs(a) < floor) continue;
       if (x < G - 1 && mask[p + 1] && a * vecs[o + p + 1] < 0) { const X = (x + 1) * cs; ctx.moveTo(X, y * cs); ctx.lineTo(X, (y + 1) * cs); }
       if (y < G - 1 && mask[p + G] && a * vecs[o + p + G] < 0) { const Y = (y + 1) * cs; ctx.moveTo(x * cs, Y); ctx.lineTo((x + 1) * cs, Y); }
     }
@@ -1481,6 +1515,7 @@ function drawNodal(ctx, w, r) { const o = 0, vecs = r;
     for (let y = 0; y < G - 1; y++) for (let x = 0; x < G - 1; x++) {
       const p = y * G + x; if (!(mask[p] && mask[p + 1] && mask[p + G] && mask[p + G + 1])) continue;
       const v = [vecs[o + p], vecs[o + p + 1], vecs[o + p + G + 1], vecs[o + p + G]], cx = [x, x + 1, x + 1, x], cy = [y, y, y + 1, y + 1], pts = [];
+      if (Math.max(Math.abs(v[0]), Math.abs(v[1]), Math.abs(v[2]), Math.abs(v[3])) < floor) continue;
       for (let e = 0; e < 4; e++) { const a = v[e], b = v[(e + 1) % 4]; if ((a < 0) !== (b < 0)) { const t = a / (a - b), f = (e + 1) % 4; pts.push([(cx[e] + (cx[f] - cx[e]) * t + 0.5) * cs, (cy[e] + (cy[f] - cy[e]) * t + 0.5) * cs]); } }
       for (let k = 0; k + 1 < pts.length; k += 2) { ctx.moveTo(pts[k][0], pts[k][1]); ctx.lineTo(pts[k + 1][0], pts[k + 1][1]); }
     }
@@ -2068,7 +2103,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors
 new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 readColors();
-applyPreset('bugle');
+loadSmooth('bugle');
 setTab('drum');
 drawSpectrum(); showDamping();
 requestAnimationFrame(frame);
