@@ -74,20 +74,18 @@ h1 { margin: 0 0 10px; color: var(--navy-dark); font: bold 36px/1 var(--font-dis
 @keyframes pulse { 50% { opacity: 0.2; } }
 
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-.stage { grid-template-areas: "shape view"; }
-.shape-panel { grid-area: shape; } .view-panel { grid-area: view; } .sound-panel { grid-area: sound; }
-.stage.player { grid-template-areas: "shape shape" "view sound"; }
-.stage.player .shape-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 260px); grid-template-areas: "head head" "tools canvas" "cta canvas" "help canvas" "hint canvas" ". canvas"; column-gap: 18px; row-gap: 10px; align-items: start; }
-.stage.player .shape-panel > .panel-head { grid-area: head; }
-.stage.player .shape-panel > .toolbar { grid-area: tools; }
-.stage.player .shape-panel > #editor { grid-area: canvas; }
-.stage.player .shape-panel > #modesHelp { grid-area: help; }
-.stage.player .shape-panel > #hint { grid-area: hint; }
-.stage.player .shape-panel > #drawCTA { grid-area: cta; }
+.stage { grid-template-areas: "shape shape" "view side"; }
+.shape-panel { grid-area: shape; } .view-panel { grid-area: view; } .side-panel { grid-area: side; }
+.shape-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 260px); grid-template-areas: "head head" "tools canvas" "cta canvas" "help canvas" "hint canvas" ". canvas"; column-gap: 18px; row-gap: 10px; align-items: start; }
+.shape-panel > .panel-head { grid-area: head; } .shape-panel > .toolbar { grid-area: tools; } .shape-panel > #editor { grid-area: canvas; }
+.shape-panel > #modesHelp { grid-area: help; } .shape-panel > #hint { grid-area: hint; } .shape-panel > #drawCTA { grid-area: cta; }
+.side { display: flex; flex-direction: column; gap: 10px; }
+.mode-info { font: 13px var(--font-mono); color: var(--ink); background: #edf1ee; border: 1px solid #a6b5a9; padding: 8px 10px; line-height: 1.7; }
+.mode-info b { font: bold 18px var(--font-display); color: var(--navy-dark); }
 @media (max-width: 860px) {
-  .stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "view" "shape"; }
-  .stage.player { grid-template-areas: "shape" "view" "sound"; }
-  .stage.player .shape-panel { display: flex; }
+  .stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "shape" "view" "side"; }
+  .shape-panel { display: flex; }
+}
 }
 .panel { background: var(--panel); border: 1px solid #96a79a; box-shadow: 2px 2px 0 #d5ddd7; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: -12px -12px 2px; padding: 5px 10px; background: linear-gradient(90deg, #dce6df, #f8f8f4); border-bottom: 1px solid #a5b5a9; min-height: 34px; }
@@ -252,9 +250,9 @@ td.err { color: var(--muted); font-size: 11px; }
     <section class="panel view-panel" id="viewPanel" aria-label="Live view">
       <div class="panel-head">
         <div class="tabs" role="tablist" aria-label="View">
+          <button role="tab" data-tab="drum" aria-selected="true" type="button">Drum</button>
           <button role="tab" data-tab="modes" aria-selected="false" type="button">Modes</button>
           <button role="tab" data-tab="heat" aria-selected="false" type="button">Heat</button>
-          <button role="tab" data-tab="drum" aria-selected="true" type="button">Drum</button>
           <button role="tab" data-tab="quantum" aria-selected="false" type="button">Schrödinger</button>
           <button role="tab" data-tab="compare" aria-selected="false" type="button">vs undergrad thesis</button>
         </div>
@@ -262,14 +260,13 @@ td.err { color: var(--muted); font-size: 11px; }
       <div class="viewbox" id="viewBox"><canvas id="view" class="sq" aria-label="Field view"></canvas><div class="overlay" id="overlay"></div>
         <div class="loadbar" id="loadbar" hidden><span id="loadText">Computing modes…</span><div class="lb-track"><div class="lb-fill" id="loadFill"></div></div></div>
       </div>
-
-      <div class="tabctl" data-for="modes">
+      <!-- view bars: how the canvas is shown, per tab -->
+      <div class="tabctl" data-for="modes compare" hidden>
         <span class="seg"><button id="modePrev" type="button" aria-label="Previous mode">◀</button><button id="modeNext" type="button" aria-label="Next mode">▶</button></span>
         <label><input type="checkbox" id="nodal" checked> Nodal lines</label>
         <label><input type="checkbox" id="tones" checked> Play each mode’s note</label>
-        <span class="small">Red and blue move in opposite directions. The lines are where the drum stays still.</span>
       </div>
-      <div class="tabctl" data-for="drum" hidden>
+      <div class="tabctl" data-for="drum">
         <div class="seg" role="group" aria-label="Drum view">
           <button id="dvDrum" class="on" type="button">Drum</button><button id="dvWave" type="button">Wave</button>
         </div>
@@ -277,34 +274,7 @@ td.err { color: var(--muted); font-size: 11px; }
         <button id="waveMode" type="button" hidden>Ring selected mode</button>
         <button id="waveReset" class="ghost" type="button" hidden>Stop</button>
       </div>
-      <div class="tabctl col" data-for="heat" hidden>
-        <div class="toolbar">
-          <div class="seg" role="group" aria-label="Heat tool">
-            <button id="htPaint" class="on" type="button">Paint heat</button><button id="htSource" type="button">Place source</button>
-          </div>
-          <button id="heatSteady" type="button">Steady state</button>
-          <button id="heatMode" type="button">Load selected mode</button>
-          <button id="heatReset" class="ghost" type="button">Cool</button>
-        </div>
-        <fieldset>
-          <legend>Sources</legend>
-          <div class="ctl-grid">
-            <label for="srcT">Temperature</label><input type="range" id="srcT" min="-100" max="100" step="5" value="100" data-default="100"><output id="srcTout" class="meta">+100°</output>
-          </div>
-          <p class="small" id="srcHelp">A source keeps its spot at a set temperature. Turn on “Place source” and click to add one. The slider sets the selected source. Drag a source to move it.</p>
-          <div class="toolbar">
-            <div class="chips" id="srcList"></div>
-            <button id="srcDelete" class="ghost" type="button" disabled>Delete source</button>
-            <button id="srcClear" class="ghost" type="button" disabled>Clear sources</button>
-          </div>
-        </fieldset>
-        <div class="toolbar">
-          <span class="small">Edges stay at 0°.</span>
-          <span class="colorbar"><span class="meta" id="cbMin">0°</span><canvas id="cbar" width="150" height="10" aria-label="Temperature color scale"></canvas><span class="meta" id="cbMax">+100°</span></span>
-          <span class="meta" id="heatInfo"></span>
-        </div>
-      </div>
-      <div class="tabctl col" data-for="drum" id="dampBox" hidden>
+      <div class="tabctl col" data-for="drum" id="dampBox">
         <fieldset>
           <legend>Damping</legend>
           <div class="ctl-grid">
@@ -314,47 +284,28 @@ td.err { color: var(--muted); font-size: 11px; }
           <p class="small">Mode k dies out at rate γ<sub>k</sub> = ω₁(ζ₀ + ζ₁λ<sub>k</sub>/λ₁). <span id="ringInfo"></span></p>
         </fieldset>
       </div>
-      <div class="tabctl col" data-for="quantum" hidden>
-        <p class="small" style="margin:0">A quantum billiard: a particle trapped in the shape. Click to drop a wave packet; drag before letting go to give it momentum.</p>
-        <fieldset>
-          <legend>Wave packet</legend>
-          <div class="ctl-grid">
-            <span class="lab">Show</span>
-            <div class="seg" role="group" aria-label="What to show">
-              <button id="qvRe" type="button">Re ψ</button><button id="qvAbs" type="button">|ψ|</button><button id="qvAbs2" class="on" type="button">|ψ|²</button>
-            </div><span></span>
-            <label for="qSigma">Packet width</label><input type="range" id="qSigma" min="15" max="120" value="45" data-default="45"><output id="qSigmaOut" class="meta"></output>
-            <label for="qSpeed">Speed</label><input type="range" id="qSpeed" min="0" max="100" value="45" data-default="45"><output id="qSpeedOut" class="meta"></output>
-          </div>
-          <div class="toolbar">
-            <button id="qMode" type="button">Start from selected mode</button>
-            <button id="qPause" class="ghost" type="button">Pause</button>
-            <button id="qRestart" class="ghost" type="button">Restart</button>
-            <button id="qClear" class="ghost" type="button">Clear</button>
-          </div>
-        </fieldset>
-        <div class="toolbar">
-          <span class="small">iψ<sub>t</sub> = −Δψ with ψ = 0 on the edge. Stepped in time on the same grid or mesh as the heat, so every mode it can hold is included, not only the ones in the strip.</span>
-          <span class="meta" id="qInfo"></span>
+      <div class="tabctl" data-for="heat" hidden>
+        <div class="seg" role="group" aria-label="Heat tool">
+          <button id="htPaint" class="on" type="button">Paint heat</button><button id="htSource" type="button">Place source</button>
         </div>
+        <button id="heatSteady" type="button">Steady state</button>
+        <button id="heatMode" type="button">Load selected mode</button>
+        <button id="heatReset" class="ghost" type="button">Cool</button>
       </div>
-      <div class="tabctl col" data-for="compare" hidden>
-        <p class="cmp-intro" id="cmpIntro"></p>
-        <div class="toolbar">
-          <label for="cmpN">Sine modes M
-            <select id="cmpN"><option value="12">12² = 144</option><option value="20" selected>20² = 400</option><option value="28">28² = 784</option></select>
-          </label>
-          <label for="cmpV">V₀
-            <select id="cmpV"><option value="2.1e4">2.1×10⁴</option><option value="2.1e5" selected>2.1×10⁵ (paper)</option><option value="2.6e6">2.6×10⁶</option></select>
-          </label>
-          <button id="cmpRun" class="primary" type="button">Run comparison</button>
-          <span class="meta" id="cmpInfo"></span>
+      <div class="tabctl" data-for="quantum" hidden>
+        <div class="seg" role="group" aria-label="What to show">
+          <button id="qvRe" type="button">Re ψ</button><button id="qvAbs" type="button">|ψ|</button><button id="qvAbs2" class="on" type="button">|ψ|²</button>
         </div>
-        <div class="tablewrap"><table id="cmpTable"></table></div>
+        <button id="qPause" class="ghost" type="button">Pause</button>
+        <button id="qRestart" class="ghost" type="button">Restart</button>
+        <button id="qClear" class="ghost" type="button">Clear</button>
       </div>
     </section>
-    <section class="panel sound-panel" id="soundPanel" aria-labelledby="sound-h" hidden>
-      <div class="panel-head"><h2 id="sound-h">Sound</h2><span class="meta">what you hear from the last hit</span></div>
+
+    <!-- side panel: what the current tab is about; its contents swap, the layout never moves -->
+    <section class="panel side-panel" id="sidePanel" aria-labelledby="side-h">
+      <div class="panel-head"><h2 id="side-h">Sound</h2><span class="meta" id="sideSub">what you hear from the last hit</span></div>
+      <div class="side" data-side="drum">
         <div class="legend"><span><i style="background: var(--accent)"></i>modes computed exactly</span><span><i style="background: #7a2438"></i>provisional Lanczos estimate (only while modes are still computing)</span><span><i style="background: none; border-top: 2px dashed var(--ink)"></i>hammer weighting</span><span>dotted: where a string’s overtones would be</span></div>
         <svg class="spectrum" id="spectrum" viewBox="0 0 600 304" role="img" aria-label="Loudness and ring time of each note from the last hit"></svg>
         <div class="meta" id="specInfo"></div>
@@ -373,6 +324,58 @@ td.err { color: var(--muted); font-size: 11px; }
           </div>
           <p class="meta" id="refineInfo" style="margin:0"></p>
         </fieldset>
+      </div>
+      <div class="side" data-side="modes" hidden>
+        <div class="mode-info" id="modeInfo"></div>
+        <p class="small">Each mode is a pattern the drum can vibrate in all by itself, at one pitch. Red and blue parts move in opposite directions; along the nodal lines the drum stays still. Every hit is a mix of these patterns, which is what the Drum tab plays.</p>
+        <p class="small">Click a mode in the strip below, or step with ◀ ▶. Higher modes have more nodal lines and higher pitch, roughly in proportion to √λ.</p>
+      </div>
+      <div class="side" data-side="heat" hidden>
+        <p class="small" style="margin:0">Heat spreads by u<sub>t</sub> = Δu. Paint heat anywhere, or place sources that hold a fixed temperature. This runs on the full grid or mesh, not on the modes.</p>
+        <fieldset>
+          <legend>Sources</legend>
+          <div class="ctl-grid">
+            <label for="srcT">Temperature</label><input type="range" id="srcT" min="-100" max="100" step="5" value="100" data-default="100"><output id="srcTout" class="meta">+100°</output>
+          </div>
+          <p class="small" id="srcHelp">A source keeps its spot at a set temperature. Turn on “Place source” and click to add one. The slider sets the selected source. Drag a source to move it.</p>
+          <div class="toolbar">
+            <div class="chips" id="srcList"></div>
+            <button id="srcDelete" class="ghost" type="button" disabled>Delete source</button>
+            <button id="srcClear" class="ghost" type="button" disabled>Clear sources</button>
+          </div>
+        </fieldset>
+        <div class="toolbar">
+          <span class="small">Edges stay at 0°.</span>
+          <span class="colorbar"><span class="meta" id="cbMin">0°</span><canvas id="cbar" width="150" height="10" aria-label="Temperature color scale"></canvas><span class="meta" id="cbMax">+100°</span></span>
+          <span class="meta" id="heatInfo"></span>
+        </div>
+      </div>
+      <div class="side" data-side="quantum" hidden>
+        <p class="small" style="margin:0">A quantum billiard: a particle trapped in the shape, iψ<sub>t</sub> = −Δψ with ψ = 0 on the edge. Click the drum to drop a wave packet; drag before letting go to give it momentum. This runs on the full grid or mesh, so every mode it can hold is included.</p>
+        <fieldset>
+          <legend>Wave packet</legend>
+          <div class="ctl-grid">
+            <label for="qSigma">Packet width</label><input type="range" id="qSigma" min="15" max="120" value="45" data-default="45"><output id="qSigmaOut" class="meta"></output>
+            <label for="qSpeed">Speed</label><input type="range" id="qSpeed" min="0" max="100" value="45" data-default="45"><output id="qSpeedOut" class="meta"></output>
+          </div>
+          <div class="toolbar"><button id="qMode" type="button">Start from selected mode</button></div>
+        </fieldset>
+        <p class="meta" id="qInfo" style="margin:0"></p>
+      </div>
+      <div class="side" data-side="compare" hidden>
+        <p class="cmp-intro" id="cmpIntro"></p>
+        <div class="toolbar">
+          <label for="cmpN">Sine modes M
+            <select id="cmpN"><option value="12">12² = 144</option><option value="20" selected>20² = 400</option><option value="28">28² = 784</option></select>
+          </label>
+          <label for="cmpV">V₀
+            <select id="cmpV"><option value="2.1e4">2.1×10⁴</option><option value="2.1e5" selected>2.1×10⁵ (paper)</option><option value="2.6e6">2.6×10⁶</option></select>
+          </label>
+          <button id="cmpRun" class="primary" type="button">Run comparison</button>
+          <span class="meta" id="cmpInfo"></span>
+        </div>
+        <div class="tablewrap"><table id="cmpTable"></table></div>
+      </div>
     </section>
   </main>
 
@@ -1573,6 +1576,13 @@ function drawStrip() {
   }
   $('stripMeta').textContent = nModes > ns ? `showing the first ${ns} of ${nModes.toLocaleString()} modes · ◀ ▶ on the Modes tab steps through all of them` : '−Δψ = λψ, ψ = 0 on the edge · click one to select it';
 }
+function showModeInfo() {
+  const el = $('modeInfo'); if (!el) return;
+  if (!nModes) { el.textContent = 'Modes are being computed…'; return; }
+  const k = selected, lam = vals[k], f = +$('f0').value * Math.sqrt(lam / vals[0]);
+  let m = 1; for (let j = k - 1; j >= 0 && Math.abs(vals[j] - lam) <= 1e-6 * lam; j--) m++; for (let j = k + 1; j < nModes && Math.abs(vals[j] - lam) <= 1e-6 * lam; j++) m++;
+  el.innerHTML = `<b>ψ${sub(k + 1)}</b> of ${nModes.toLocaleString()}<br>λ = ${lam.toFixed(domain && domain.method === 'exact' ? 4 : 2)}<br>pitch ${fmtHz(f)} (with f₁ = ${$('f0').value} Hz)${m > 1 ? `<br>shares its pitch with ${m - 1} other mode${m > 2 ? 's' : ''}` : ''}${basis && basis.labels[k] ? `<br>${basis.labels[k]}` : ''}`;
+}
 function selectMode(k) {
   selected = k; modesDirty = true;
   [...$('strip').children].forEach((b, i) => b.classList.toggle('sel', i === k));
@@ -1949,7 +1959,7 @@ function renderCompare() {
   const cols = [];
   let ref = null, refName = '';
   if (domain) {
-    $('cmpIntro').textContent = 'The same shape solved four ways. “Exact” uses the formula, when there is one. “Mesh” uses finite elements on a mesh that follows the edge. The pixel solver and the undergrad thesis method both work on the shape turned into pixels, at the grid size set on the left, so curved edges cost them some accuracy.';
+    $('cmpIntro').textContent = 'The same shape solved four ways. “Exact” uses the formula, when there is one. “Mesh” uses finite elements on a mesh that follows the edge. The pixel solver and the undergrad thesis method both work on the shape turned into pixels, at the grid size set in the shape panel, so curved edges cost them some accuracy.';
     if (domain.method === 'exact') { ref = Array.from(vals); refName = 'exact'; cols.push({ name: 'Exact', sub: domain.how, v: ref }); }
     const fem = domain.method === 'fem' ? { vals, nodes: domain.nodes, ms: lastMs } : cmp.fem;
     const femV = fem ? Array.from(fem.vals) : null;
@@ -2040,12 +2050,13 @@ $('heatMode').onclick = () => { // project the selected mode onto the heat nodes
 document.querySelectorAll('[role="tab"]').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
 function setTab(t) {
   tab = t;
-  const player = t === 'drum';
-  $('stage').classList.toggle('player', player); $('soundPanel').hidden = !player;
-  requestAnimationFrame(() => { drawEditor(); modesDirty = true; if (player) drawSpectrum(); });
+  const SIDE = { drum: ['Sound', 'what you hear from the last hit'], modes: ['Mode', 'the selected vibration pattern'], heat: ['Heat', 'temperature, edges held at 0°'], quantum: ['Quantum billiard', 'a particle trapped in the shape'], compare: ['vs undergrad thesis', 'the same shape solved four ways'] };
+  $('side-h').textContent = SIDE[t][0]; $('sideSub').textContent = SIDE[t][1];
+  document.querySelectorAll('[data-side]').forEach((d) => { d.hidden = d.dataset.side !== t; });
+  modesDirty = true; if (t === 'drum') drawSpectrum(); if (t === 'modes' || t === 'compare') showModeInfo();
   document.querySelectorAll('[role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
   document.querySelectorAll('.tabctl').forEach((d) => { d.hidden = !d.dataset.for.split(' ').includes(t); });
-  $('viewBox').hidden = t === 'compare'; $('overlay').textContent = '';
+  $('overlay').textContent = '';
   if (t === 'modes') modesDirty = true;
   if (t === 'drum') { drawSpectrum(); $('hamOut').textContent = `σ = ${hammerSigma().toFixed(3)}`; setDrumView(dview); }
   if (t === 'compare') renderCompare();
@@ -2057,7 +2068,7 @@ let lastT = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   if (C.void && !$('viewBox').hidden) {
-    if (tab === 'modes') { if (modesDirty) { renderModes(); modesDirty = false; } }
+    if (tab === 'modes' || tab === 'compare') { if (modesDirty) { renderModes(); showModeInfo(); modesDirty = false; } }
     else if (tab === 'drum' && dview === 'wave') {
       fitCanvas(view);
       if (!nModes || resG !== G) blank('computing…');
