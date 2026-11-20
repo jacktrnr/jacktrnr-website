@@ -200,6 +200,7 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="fem:hole4">Disk with square hole ¼</option>
             </optgroup>
             <optgroup label="Pixel shapes (editable)">
+              <option value="px:bugle" selected>Bugle</option>
               <option value="px:L">L-shape</option>
               <option value="px:square">Square</option>
               <option value="px:disk">Disk</option>
@@ -208,7 +209,7 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="px:snake">Snake (undergrad thesis Fig. 6-3)</option>
               <option value="px:star">Star</option>
               <option value="px:heart">Heart</option>
-              <option value="px:dumbbell" selected>Dumbbell</option>
+              <option value="px:dumbbell">Dumbbell</option>
               <option value="px:slit">Double slit (quantum)</option>
               <option value="px:custom" hidden>Custom drawing</option>
             </optgroup>
@@ -1271,10 +1272,19 @@ const presets = {
   star: (x, y) => { const r = Math.hypot(x, y), t = Math.atan2(y, x) + Math.PI / 2; return r < 0.56 + 0.32 * Math.cos(5 * t); },
   heart: (x, y) => { const X = x * 1.2, Y = -y * 1.2 + 0.2, a = X * X + Y * Y - 1; return a * a * a - X * X * Y * Y * Y < 0; },
   dumbbell: (x, y) => Math.hypot(x - 0.5, y) < 0.4 || Math.hypot(x + 0.5, y) < 0.4 || (Math.abs(y) < 0.09 && Math.abs(x) < 0.5),
+  // a bugle: mouthpiece, a tube that loops twice, and a flared bell
+  bugle: (x, y) => {
+    const w = 0.05, seg = (ax, ay, bx, by) => { const vx = bx - ax, vy = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy))); return Math.hypot(x - ax - t * vx, y - ay - t * vy) < w; };
+    const ring = (cx, cy, r, side) => Math.abs(Math.hypot(x - cx, y - cy) - r) < w && side * (x - cx) >= 0;
+    const tube = seg(-0.84, 0.45, 0.45, 0.45) || ring(0.45, 0.25, 0.2, 1) || seg(0.45, 0.05, -0.45, 0.05) || ring(-0.45, -0.15, 0.2, -1);
+    const bell = x >= -0.45 && x <= 0.95 && Math.abs(y + 0.35) < w + (x > 0.25 ? 0.23 * ((x - 0.25) / 0.7) ** 2.5 : 0);
+    const cup = Math.hypot(x + 0.9, y - 0.45) < 0.075;
+    return tube || bell || cup;
+  },
   // a box split by a thin wall with two narrow slits
   slit: (x, y) => Math.abs(x) < 0.95 && Math.abs(y) < 0.7 && !(Math.abs(x + 0.45) < 0.025 && !(Math.abs(y - 0.16) < 0.04 || Math.abs(y + 0.16) < 0.04)),
 };
-let currentPreset = 'dumbbell';
+let currentPreset = 'bugle';
 function applyPreset(name) {
   currentPreset = name; domain = null; G = Gp; const f = presets[name]; mask = new Uint8Array(G * G);
   for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) mask[y * G + x] = f((x + 0.5) / G * 2 - 1, (y + 0.5) / G * 2 - 1) ? 1 : 0;
@@ -1303,7 +1313,7 @@ function drawEditor() {
   for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) if (mask[y * G + x]) ectx.fillRect(Math.floor(x * cs), Math.floor(y * cs), Math.ceil(cs), Math.ceil(cs));
   if (cs >= 5) { ectx.strokeStyle = C.grid; ectx.lineWidth = 1; ectx.beginPath(); for (let i = 1; i < G; i++) { const p = Math.round(i * cs) + 0.5; ectx.moveTo(p, 0); ectx.lineTo(p, w); ectx.moveTo(0, p); ectx.lineTo(w, p); } ectx.stroke(); }
   $('shapeMeta').textContent = `${mask.reduce((a, b) => a + b, 0).toLocaleString()} px · h = 1/${G}`;
-  $('hint').textContent = (currentPreset === 'dumbbell' ? 'This drum is painted on the grid. Paint or erase to make it your own, or pick another shape above. ' : '') + 'Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine. While you draw, the modes update quickly at low resolution; the full set follows when you let go.';
+  $('hint').textContent = (currentPreset === 'bugle' ? 'This drum is painted on the grid. Paint or erase to make it your own, or pick another shape above. ' : '') + 'Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine. While you draw, the modes update quickly at low resolution; the full set follows when you let go.';
 }
 let painting = false, last = null, eraseNow = false;
 function cellAt(c, e) { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * G, (e.clientY - r.top) / r.height * G]; }
@@ -2058,7 +2068,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors
 new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 readColors();
-applyPreset('dumbbell');
+applyPreset('bugle');
 setTab('drum');
 drawSpectrum(); showDamping();
 requestAnimationFrame(frame);
