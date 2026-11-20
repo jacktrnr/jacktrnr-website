@@ -142,6 +142,13 @@ legend { padding: 0 5px; color: var(--burgundy); font: bold 10px var(--font-mono
 .lb-fill { height: 100%; width: 0%; background: repeating-linear-gradient(90deg, var(--navy) 0 8px, transparent 8px 10px); transition: width .3s; }
 .status.busy::before { content: "⌛"; display: inline-block; animation: hg 1.6s steps(2) infinite; }
 @keyframes hg { 50% { transform: rotate(180deg); } }
+.drawmodal { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; gap: 10px; padding: 12px max(12px, env(safe-area-inset-right, 0px)) 12px max(12px, env(safe-area-inset-left, 0px)); background: repeating-linear-gradient(0deg, rgba(255,255,255,.12) 0, rgba(255,255,255,.12) 1px, transparent 1px, transparent 4px), var(--bg); }
+.dm-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; color: #fff; background: linear-gradient(#3d6a4e, var(--navy-dark)); border: 1px solid #102519; border-bottom: 3px double #dbe4dc; }
+.dm-bar h2 { color: #fff; font-size: 17px; margin-right: 6px; }
+.dm-bar label, .dm-bar .small { color: #e7eee9; }
+.dm-bar #dmDone { margin-left: auto; }
+.dm-stage { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+.dm-stage canvas.sq { width: min(100%, calc(100vh - 120px)); height: auto; background: var(--void); border: 2px solid var(--navy-dark); box-shadow: 3px 3px 0 rgba(0,0,0,.18); }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip { font: 11px var(--font-mono); padding: 2px 8px; }
 .chip.sel { color: #fff; background: var(--navy); border-style: inset; }
@@ -241,8 +248,8 @@ td.err { color: var(--muted); font-size: 11px; }
         </label>
         <button id="clearBtn" class="ghost" type="button">Clear</button>
       </div>
-      <canvas id="editor" class="sq" aria-label="Shape editor"></canvas>
-      <p class="explain" id="drawCTA"><b>Draw your own drum.</b> Paint or erase on the shape canvas (Shift-drag erases), or pick a shape from the menu. The modes, the sound and the simulations follow whatever you draw.</p>
+      <canvas id="editor" class="sq" aria-label="Shape editor"></canvas><span id="editorHome" hidden></span>
+      <div class="explain" id="drawCTA"><b>Draw your own drum.</b> Paint or erase on the shape canvas (Shift-drag erases), or pick a shape from the menu. The modes, the sound and the simulations follow whatever you draw.<div class="toolbar" style="margin-top:8px"><button id="openDraw" class="primary" type="button">✎ Draw full screen</button></div></div>
       <p class="small" id="modesHelp" style="margin:0">“Modes used” is how many modes make up the drum: the mode strip, the drum and wave views, and the sound. Heat and the Schrödinger particle step on the full grid instead.</p>
       <p class="hint" id="hint">Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine.</p>
     </section>
@@ -313,7 +320,7 @@ td.err { color: var(--muted); font-size: 11px; }
           <legend>Strike</legend>
           <div class="ctl-grid">
             <label for="f0">Pitch f₁</label><input type="range" id="f0" min="55" max="401" value="228" data-default="228"><output id="f0out" class="meta">228 Hz</output>
-            <label for="hammer">Hammer width</label><input type="range" id="hammer" min="15" max="145" value="80" data-default="80"><output id="hamOut" class="meta">σ = 0.080</output>
+            <label for="hammer">Hammer width</label><input type="range" id="hammer" min="15" max="145" value="15" data-default="15"><output id="hamOut" class="meta">σ = 0.015</output>
             <label for="listener">Listen</label><select id="listener"><option value="far" selected>Across the room</option><option value="contact">Contact mic</option></select><span></span>
           </div>
           <p class="explain" id="listenHelp"></p>
@@ -427,6 +434,18 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
   <p>© 2026 Jackson Turner</p>
   <p>Eigendrum · built on my 2021 undergrad thesis, University of Utah</p>
 </footer>
+<div class="drawmodal" id="drawModal" role="dialog" aria-modal="true" aria-labelledby="dm-h" hidden>
+  <div class="dm-bar">
+    <h2 id="dm-h">Draw your drum</h2>
+    <div class="seg" role="group" aria-label="Brush mode"><button id="dmDraw" class="on" type="button">Draw</button><button id="dmErase" type="button">Erase</button></div>
+    <label for="dmBrush">Brush <select id="dmBrush"><option value="0.5">1 px</option><option value="1.5">3 px</option><option value="2.6">5 px</option><option value="4.2">9 px</option></select></label>
+    <label for="dmShape">Start from <select id="dmShape"></select></label>
+    <button id="dmClear" class="ghost" type="button">Clear</button>
+    <span class="small">Shift-drag or right-drag erases. The drum updates as you draw.</span>
+    <button id="dmDone" class="primary" type="button">Done</button>
+  </div>
+  <div class="dm-stage" id="dmStage"></div>
+</div>
 <div class="tip" id="tip" hidden></div>
 
 <script id="shared-src" type="text/plain">
@@ -797,7 +816,7 @@ function solveFEM(g, K, R, valsOnly) {
   if (g.type === 'tube') { // strip meshes are narrow-banded: shift-invert slicing beats Chebyshev filtering here
     const prev = audio, prevR = refine;
     audio = { kind: 'op', op: fe.op, Y: [], lam: new F(0), sqrtM: fe.sq, xy: fe.xy, h: fe.h }; refine = null;
-    const RR = refineSync(1, K + 6);
+    const post = self.postMessage; self.postMessage = null; const RR = refineSync(1, K + 6); self.postMessage = post;
     r = { theta: RR.locked.map(e => e.lam), X: RR.locked.map(e => F.from(e.y)) };
     if (valsOnly) { audio = prev; refine = prevR; }
   } else r = solveLevel(fe.op, K, null, 2e-4, 800, 24);
@@ -806,7 +825,8 @@ function solveFEM(g, K, R, valsOnly) {
   const map = femRaster(mesh, fe.idx, R), Y = new Float32Array(Kout * fe.n);
   for (let k = 0; k < Kout; k++) { const y = r.X[k], sg = signFix(y); for (let i = 0; i < fe.n; i++) Y[k * fe.n + i] = sg * y[i] / fe.sq[i]; }
   const keep = g.type === 'tube' && refine && refine.op === fe.op ? refine : null;
-  audio = { kind: 'op', op: fe.op, Y: r.X.slice(0, Kout), lam: vals, sqrtM: fe.sq, xy: fe.xy, h: fe.h }; refine = keep; if (keep) keep.a = audio;
+  audio = { kind: 'op', op: fe.op, Y: r.X.slice(0, Kout), lam: vals, sqrtM: fe.sq, xy: fe.xy, h: fe.h }; refine = keep;
+  if (keep) { keep.a = audio; keep.sent = Kout; } // the page gets the first Kout modes with the shape; later batches continue from there
   return { vals, Y, n: fe.n, mask: map.mask, R, K: Kout, nodes: fe.n, mesh: meshPayload(mesh), heat: heatPayload(fe, map), hmesh: fe.h, ms: performance.now() - t0, labels: null };
 }
 
@@ -1401,6 +1421,25 @@ function convertToPixels() {
   G = Gp; mask = SH.rasterize(domain.geom, G); domain = null; $('preset').value = 'px:custom';
   pixelReset(); shapeChanged(false);
 }
+function openDraw() {
+  const sel = $('dmShape'); if (!sel.options.length) sel.innerHTML = $('preset').innerHTML;
+  sel.value = $('preset').value; $('dmBrush').value = $('brush').value;
+  $('dmStage').appendChild(ed); $('drawModal').hidden = false; document.body.style.overflow = 'hidden';
+  syncTools(); requestAnimationFrame(drawEditor); $('dmDone').focus();
+}
+function closeDraw() {
+  if ($('drawModal').hidden) return;
+  const home = $('editorHome'); home.parentNode.insertBefore(ed, home);
+  $('drawModal').hidden = true; document.body.style.overflow = ''; requestAnimationFrame(() => { drawEditor(); modesDirty = true; }); $('openDraw').focus();
+}
+function syncTools() { for (const [a, b] of [['toolDraw', 'dmDraw'], ['toolErase', 'dmErase']]) { const on = (a === 'toolDraw') === (tool === 'draw'); $(a).classList.toggle('on', on); $(b).classList.toggle('on', on); } }
+$('openDraw').onclick = openDraw; $('dmDone').onclick = closeDraw;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDraw(); });
+$('dmDraw').onclick = () => { tool = 'draw'; syncTools(); };
+$('dmErase').onclick = () => { tool = 'erase'; syncTools(); };
+$('dmBrush').onchange = () => { $('brush').value = $('dmBrush').value; };
+$('dmShape').onchange = () => { $('preset').value = $('dmShape').value; $('preset').onchange(); requestAnimationFrame(drawEditor); };
+$('dmClear').onclick = () => { $('clearBtn').onclick(); $('dmShape').value = $('preset').value; requestAnimationFrame(drawEditor); };
 ed.addEventListener('contextmenu', (e) => e.preventDefault());
 ed.addEventListener('pointerdown', (e) => { if (domain) convertToPixels(); painting = true; last = null; eraseNow = e.shiftKey || e.button === 2; ed.setPointerCapture(e.pointerId); stroke(e); });
 ed.addEventListener('pointermove', (e) => { if (painting) stroke(e); });
@@ -1451,7 +1490,11 @@ function targetCount() { // the number of modes the drum is built from
 function updateUse() {
   const before = nModes; nModes = basis ? Math.min(basis.count, targetCount()) : 0; vals = basis ? basis.lam.subarray(0, nModes) : new F(0);
   if (selected >= nModes) selected = 0;
-  if (nModes !== before) { mw = null; if (nStrip() !== $('strip').children.length || before < STRIP_MAX) drawStrip(); modesDirty = true; }
+  if (nModes !== before) {
+    if (drum && heat) drum.c = projectBump(drum.x, drum.y, drum.sigma, null); // the replay always uses every mode in use
+    if (mw) { const u = new F(nModes), v = new F(nModes); u.set(mw.u.subarray(0, Math.min(nModes, mw.u.length))); v.set(mw.v.subarray(0, Math.min(nModes, mw.v.length))); mw = { u, v }; }
+    if (nStrip() !== $('strip').children.length || before < STRIP_MAX) drawStrip(); modesDirty = true;
+  }
   const ns = nStrip(); $('stripMeta').textContent = nModes > ns ? `showing the first ${ns} of ${nModes.toLocaleString()} modes · ◀ ▶ on the Modes tab steps through all of them` : '−Δψ = λψ, ψ = 0 on the edge · click one to select it';
 }
 function requestBasis() { if (!basis) return; worker.postMessage({ type: 'basis', count: Kreq(), sigma: hammerSigma() }); }
@@ -1816,7 +1859,7 @@ function strike(cx, cy, animate) {
   const id = ++strikeSeq; pendingStrikes.set(id, { listener, key });
   worker.postMessage({ type: 'strike', id, x, y, sigma, listener, count });
   lastHit = { x, y };
-  if (animate) drum = { c: projectBump(x, y, visSigma(), null), t0: performance.now(), x, y, sigma };
+  if (animate) drum = { c: projectBump(x, y, sigma, null), t0: performance.now(), x, y, sigma };
 }
 function refGain(ref, listener, sr) {
   if (!ref || !ref.parts) return null;
@@ -1834,7 +1877,7 @@ function onStrike(m) {
   playBuffer(synthesize(osc, ctx.sampleRate, 4, gain), ctx.sampleRate);
   lastSpec = { parts: m.parts, listener: ps.listener, info: m.info, nyq: ctx.sampleRate / 2 }; drawSpectrum();
 }
-function hitAt(x, y) { if (dview === 'wave' && nModes) { const c = projectBump(x, y, visSigma(), null); if (!mw) modalWave(0); for (let k = 0; k < nModes; k++) mw.v[k] += c[k]; strike(x * G, y * G, false); } else strike(x * G, y * G, true); }
+function hitAt(x, y) { if (dview === 'wave' && nModes) { const c = projectBump(x, y, hammerSigma(), null); if (!mw) modalWave(0); for (let k = 0; k < nModes; k++) mw.v[k] += c[k]; strike(x * G, y * G, false); } else strike(x * G, y * G, true); }
 function hitAgain() { if (lastHit) hitAt(lastHit.x, lastHit.y); else hitCentre(); }
 function hitCentre() { if (!nModes || resG !== G) return; const [rx, ry] = refPoint(); hitAt(rx, ry); }
 $('hitAgain').onclick = hitAgain; $('hitCentre').onclick = hitCentre;
@@ -2019,7 +2062,7 @@ view.addEventListener('pointerdown', (e) => {
   const [ux, uy] = unitAt(e), cx = ux * G, cy = uy * G;
   if (tab === 'drum') {
     if (!nModes) return;
-    if (dview === 'wave') { const c = projectBump(ux, uy, visSigma(), null); if (!mw) modalWave(0); for (let k = 0; k < nModes; k++) mw.v[k] += c[k]; strike(cx, cy, false); }
+    if (dview === 'wave') { const c = projectBump(ux, uy, hammerSigma(), null); if (!mw) modalWave(0); for (let k = 0; k < nModes; k++) mw.v[k] += c[k]; strike(cx, cy, false); }
     else strike(cx, cy, true);
   } else if (tab === 'heat' && heat) {
     if (heatTool === 'source') {
@@ -2130,8 +2173,8 @@ function frame(now) {
 }
 
 // ---------- controls ----------
-$('toolDraw').onclick = () => { tool = 'draw'; $('toolDraw').classList.add('on'); $('toolErase').classList.remove('on'); };
-$('toolErase').onclick = () => { tool = 'erase'; $('toolErase').classList.add('on'); $('toolDraw').classList.remove('on'); };
+$('toolDraw').onclick = () => { tool = 'draw'; syncTools(); };
+$('toolErase').onclick = () => { tool = 'erase'; syncTools(); };
 $('preset').onchange = () => {
   const v = $('preset').value; if (v === 'px:custom') return; cmp = {};
   if (v === 'px:slit') { $('kSel').value = '32'; Ksel = 32; qEmpty = false; qs = null; setQView('abs'); }
@@ -2151,6 +2194,7 @@ $('gridSel').onchange = () => {
   G = ng; mask = nm; pixelReset(); shapeChanged(false);
 };
 window.addEventListener('resize', () => { drawEditor(); modesDirty = true; });
+$('brush').addEventListener('change', () => { $('dmBrush').value = $('brush').value; });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
 new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
