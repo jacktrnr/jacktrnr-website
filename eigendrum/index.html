@@ -74,7 +74,7 @@ h1 { margin: 0 0 10px; color: var(--navy-dark); font: bold 36px/1 var(--font-dis
 @keyframes pulse { 50% { opacity: 0.2; } }
 
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-@media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } .stage > section:nth-child(2) { order: -1; } }
 .panel { background: var(--panel); border: 1px solid #96a79a; box-shadow: 2px 2px 0 #d5ddd7; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: -12px -12px 2px; padding: 5px 10px; background: linear-gradient(90deg, #dce6df, #f8f8f4); border-bottom: 1px solid #a5b5a9; min-height: 34px; }
 h2 { margin: 0; color: var(--navy-dark); font: bold 18px var(--font-display); }
@@ -117,6 +117,14 @@ canvas.sq { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; backg
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--muted); align-items: center; }
 .legend i { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; }
 .tip { position: fixed; pointer-events: none; background: var(--yellow); color: var(--ink); border: 1px solid #c8bd78; font: 11px var(--font-mono); padding: 3px 7px; z-index: 20; white-space: nowrap; box-shadow: 2px 2px 0 rgba(0,0,0,.12); }
+fieldset { margin: 0; padding: 8px 12px 11px; border: 1px solid #a6b5a9; background: #fbfcfa; display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+legend { padding: 0 5px; color: var(--burgundy); font: bold 10px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.ctl-grid { display: grid; grid-template-columns: 10.5em minmax(0, 1fr) 7.5em; gap: 8px 12px; align-items: center; }
+.ctl-grid > label, .ctl-grid > .lab { color: #354239; font-size: 12px; }
+.ctl-grid input[type="range"] { width: 100%; margin: 0; }
+.ctl-grid output { text-align: right; white-space: nowrap; }
+.ctl-grid select, .ctl-grid .seg { justify-self: start; }
+@media (max-width: 520px) { .ctl-grid { grid-template-columns: 7.5em minmax(0, 1fr) 6em; gap: 8px; } }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip { font: 11px var(--font-mono); padding: 2px 8px; }
 .chip.sel { color: #fff; background: var(--navy); border-style: inset; }
@@ -237,7 +245,7 @@ td.err { color: var(--muted); font-size: 11px; }
         <span class="small">Red and blue move in opposite directions. The lines are where the drum stays still.</span>
       </div>
       <div class="tabctl" data-for="wave" hidden>
-        <span class="small">Click to hit the drum.</span>
+        <span class="small">Click the drum to hit it.</span>
         <button id="waveMode" type="button">Ring selected mode</button>
         <button id="waveReset" class="ghost" type="button">Stop</button>
         <label><input type="checkbox" id="waveSound" checked> Sound</label>
@@ -247,17 +255,22 @@ td.err { color: var(--muted); font-size: 11px; }
           <div class="seg" role="group" aria-label="Heat tool">
             <button id="htPaint" class="on" type="button">Paint heat</button><button id="htSource" type="button">Place source</button>
           </div>
-          <label for="srcT">T <input type="range" id="srcT" min="-100" max="100" step="5" value="100"> <output id="srcTout" class="meta">+100°</output></label>
           <button id="heatSteady" type="button">Steady state</button>
           <button id="heatMode" type="button">Load selected mode</button>
           <button id="heatReset" class="ghost" type="button">Cool</button>
         </div>
-        <div class="toolbar">
-          <span class="small" id="srcHelp">A source keeps its spot at a set temperature. Turn on “Place source” and click to add one. The T slider sets the selected source. Drag a source to move it.</span>
-          <div class="chips" id="srcList"></div>
-          <button id="srcDelete" class="ghost" type="button" disabled>Delete source</button>
-          <button id="srcClear" class="ghost" type="button" disabled>Clear sources</button>
-        </div>
+        <fieldset>
+          <legend>Sources</legend>
+          <div class="ctl-grid">
+            <label for="srcT">Temperature</label><input type="range" id="srcT" min="-100" max="100" step="5" value="100" data-default="100"><output id="srcTout" class="meta">+100°</output>
+          </div>
+          <p class="small" id="srcHelp">A source keeps its spot at a set temperature. Turn on “Place source” and click to add one. The slider sets the selected source. Drag a source to move it.</p>
+          <div class="toolbar">
+            <div class="chips" id="srcList"></div>
+            <button id="srcDelete" class="ghost" type="button" disabled>Delete source</button>
+            <button id="srcClear" class="ghost" type="button" disabled>Clear sources</button>
+          </div>
+        </fieldset>
         <div class="toolbar">
           <span class="small">Edges stay at 0°.</span>
           <span class="colorbar"><span class="meta" id="cbMin">0°</span><canvas id="cbar" width="150" height="10" aria-label="Temperature colour scale"></canvas><span class="meta" id="cbMax">+100°</span></span>
@@ -265,43 +278,59 @@ td.err { color: var(--muted); font-size: 11px; }
         </div>
       </div>
       <div class="tabctl col" data-for="drum" hidden>
-        <div class="toolbar">
-          <span class="small">Click the drum to play it.</span>
-          <label for="f0">f<sub>1</sub> <input type="range" id="f0" min="55" max="440" value="110"> <output id="f0out" class="meta">110 Hz</output></label>
-          <label for="hammer">Hammer width <input type="range" id="hammer" min="15" max="80" value="30"> <output id="hamOut" class="meta">σ = 0.030</output></label>
-          <label for="listener">Listen
-            <select id="listener"><option value="far" selected>Across the room</option><option value="contact">Contact mic</option></select>
-          </label>
-        </div>
-        <p class="explain" id="listenHelp"></p>
+        <fieldset>
+          <legend>Strike</legend>
+          <div class="ctl-grid">
+            <label for="f0">Pitch f₁</label><input type="range" id="f0" min="55" max="440" value="110" data-default="110"><output id="f0out" class="meta">110 Hz</output>
+            <label for="hammer">Hammer width</label><input type="range" id="hammer" min="15" max="80" value="30" data-default="30"><output id="hamOut" class="meta">σ = 0.030</output>
+            <label for="listener">Listen</label><select id="listener"><option value="far" selected>Across the room</option><option value="contact">Contact mic</option></select><span></span>
+          </div>
+          <p class="explain" id="listenHelp"></p>
+          <div class="toolbar">
+            <button id="hitAgain" class="primary" type="button">Hit again</button>
+            <button id="hitCentre" type="button">Hit the centre</button>
+            <span class="small">Or click anywhere on the drum. The space bar hits again.</span>
+          </div>
+        </fieldset>
+      </div>
+      <div class="tabctl col" data-for="wave drum" hidden>
+        <fieldset>
+          <legend>Damping</legend>
+          <div class="ctl-grid">
+            <label for="z0">Damping ζ₀</label><input type="range" id="z0" min="0" max="40" step="any" value="1" data-default="1"><output id="z0out" class="meta"></output>
+            <label for="z1">High-note damping ζ₁</label><input type="range" id="z1" min="0" max="40" step="any" value="1" data-default="1"><output id="z1out" class="meta"></output>
+          </div>
+          <p class="small">Mode k dies out at rate γ<sub>k</sub> = ω₁(ζ₀ + ζ₁λ<sub>k</sub>/λ₁). <span id="ringInfo"></span></p>
+        </fieldset>
+      </div>
+      <div class="tabctl col" data-for="drum" hidden>
         <div class="legend"><span><i style="background: var(--accent)"></i>modes computed exactly</span><span><i style="background: #7a2438"></i>Lanczos estimate of the rest of the spectrum (shaded band)</span><span><i style="background: none; border-top: 2px dashed var(--ink)"></i>hammer weighting</span><span>dotted: where a string’s overtones would be</span></div>
         <svg class="spectrum" id="spectrum" viewBox="0 0 600 304" role="img" aria-label="Loudness and ring time of each note from the last hit"></svg>
         <div class="meta" id="specInfo"></div>
       </div>
       <div class="tabctl col" data-for="quantum" hidden>
-        <div class="toolbar">
-          <span class="small">A quantum billiard: a particle trapped in the shape. Click to drop a wave packet; drag before letting go to give it momentum.</span>
-          <div class="seg" role="group" aria-label="What to show">
-            <button id="qvRe" type="button">Re ψ</button><button id="qvAbs" type="button">|ψ|</button><button id="qvAbs2" class="on" type="button">|ψ|²</button>
+        <p class="small" style="margin:0">A quantum billiard: a particle trapped in the shape. Click to drop a wave packet; drag before letting go to give it momentum.</p>
+        <fieldset>
+          <legend>Wave packet</legend>
+          <div class="ctl-grid">
+            <span class="lab">Show</span>
+            <div class="seg" role="group" aria-label="What to show">
+              <button id="qvRe" type="button">Re ψ</button><button id="qvAbs" type="button">|ψ|</button><button id="qvAbs2" class="on" type="button">|ψ|²</button>
+            </div><span></span>
+            <label for="qSigma">Packet width</label><input type="range" id="qSigma" min="15" max="120" value="45" data-default="45"><output id="qSigmaOut" class="meta"></output>
+            <label for="qSpeed">Speed</label><input type="range" id="qSpeed" min="0" max="100" value="45" data-default="45"><output id="qSpeedOut" class="meta"></output>
           </div>
-        </div>
-        <div class="toolbar">
-          <label for="qSigma">Packet width <input type="range" id="qSigma" min="15" max="120" value="45"> <output id="qSigmaOut" class="meta"></output></label>
-          <label for="qSpeed">Speed <input type="range" id="qSpeed" min="0" max="100" value="45"> <output id="qSpeedOut" class="meta"></output></label>
-          <button id="qMode" type="button">Start from selected mode</button>
-          <button id="qPause" class="ghost" type="button">Pause</button>
-          <button id="qRestart" class="ghost" type="button">Restart</button>
-          <button id="qClear" class="ghost" type="button">Clear</button>
-        </div>
+          <div class="toolbar">
+            <button id="qMode" type="button">Start from selected mode</button>
+            <button id="qPause" class="ghost" type="button">Pause</button>
+            <button id="qRestart" class="ghost" type="button">Restart</button>
+            <button id="qClear" class="ghost" type="button">Clear</button>
+          </div>
+        </fieldset>
         <div class="toolbar">
           <span class="small">iψ<sub>t</sub> = −Δψ with ψ = 0 on the edge. Stepped in time on the same grid or mesh as the heat, so every mode it can hold is included, not only the ones in the strip.</span>
           <span class="meta" id="qInfo"></span>
         </div>
-      </div>
-      <div class="tabctl" data-for="wave drum" hidden>
-        <label for="z0">Damping ζ₀ <input type="range" id="z0" min="0" max="40" step="any" value="1"> <output id="z0out" class="meta"></output></label>
-        <label for="z1">Extra damping on high notes ζ₁ <input type="range" id="z1" min="0" max="40" step="any" value="1"> <output id="z1out" class="meta"></output></label>
-        <span class="small">Mode k dies out at rate γ<sub>k</sub> = ω₁(ζ₀ + ζ₁λ<sub>k</sub>/λ₁). <span id="ringInfo"></span></span>
       </div>
       <div class="tabctl col" data-for="compare" hidden>
         <p class="cmp-intro" id="cmpIntro"></p>
@@ -1454,7 +1483,7 @@ function drawQArrow(w) {
 function qDragK() { const k = Math.min(qKMax(), Math.hypot(qDrag.x1 - qDrag.x0, qDrag.y1 - qDrag.y0) * 4 * qKMax()), a = Math.atan2(qDrag.y1 - qDrag.y0, qDrag.x1 - qDrag.x0); return k < 1e-9 ? [0, 0] : [k * Math.cos(a), k * Math.sin(a)]; }
 
 // ---------- audio ----------
-let actx = null, strikeSeq = 0, refCache = {}, pendingStrikes = new Map(), lastSpec = null, drum = null;
+let lastHit = null, actx = null, strikeSeq = 0, refCache = {}, pendingStrikes = new Map(), lastSpec = null, drum = null;
 function audio() { if (!actx) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; actx = new A(); } if (actx.state === 'suspended') actx.resume(); return actx; }
 function hammerSigma() { const s = +$('hammer').value / 1000, floor = domain ? (domain.method === 'exact' ? 0.0176 : 1.2 * domain.hmesh) : 1 / G; return Math.max(s, floor); }
 function toOscillators(parts, listener) {
@@ -1495,6 +1524,7 @@ function strike(cx, cy, animate) {
   if (!refCache[key]) { refCache[key] = {}; const [rx, ry] = refPoint(); worker.postMessage({ type: 'strike', id: 'ref|' + key, x: rx, y: ry, sigma, listener }); }
   const id = ++strikeSeq; pendingStrikes.set(id, { listener, key });
   worker.postMessage({ type: 'strike', id, x, y, sigma, listener });
+  lastHit = { x, y };
   if (animate) drum = { c: projectBump(x, y, visSigma(), null), t0: performance.now(), x, y };
 }
 function refGain(ref, listener, sr) {
@@ -1513,6 +1543,15 @@ function onStrike(m) {
   playBuffer(synthesize(osc, ctx.sampleRate, 4, gain), ctx.sampleRate);
   lastSpec = { parts: m.parts, listener: ps.listener, info: m.info, nyq: ctx.sampleRate / 2 }; drawSpectrum();
 }
+function hitAgain() { if (lastHit) strike(lastHit.x * G, lastHit.y * G, true); else hitCentre(); }
+function hitCentre() { if (!nModes || resG !== G) return; const [rx, ry] = refPoint(); strike(rx * G, ry * G, true); }
+$('hitAgain').onclick = hitAgain; $('hitCentre').onclick = hitCentre;
+document.addEventListener('keydown', (e) => {
+  if (tab !== 'drum' || e.code !== 'Space' || e.repeat) return;
+  const t = e.target && e.target.tagName; if (t === 'INPUT' || t === 'SELECT' || t === 'BUTTON' || t === 'TEXTAREA') return;
+  e.preventDefault(); hitAgain();
+});
+document.querySelectorAll('input[type="range"][data-default]').forEach((r) => r.addEventListener('dblclick', () => { r.value = r.dataset.default; r.dispatchEvent(new Event('input')); }));
 $('f0').addEventListener('input', () => { $('f0out').textContent = `${$('f0').value} Hz`; showDamping(); if (lastSpec) drawSpectrum(); });
 const LISTEN_HELP = {
   far: 'Across the room: a microphone a few metres away. It hears the air the drum pushes, so modes whose up and down halves cancel are almost silent. Fewer notes, sharper attack.',
@@ -1783,9 +1822,9 @@ function frame(now) {
         const coef = new F(nModes); let am = 0;
         for (let k = 0; k < nModes; k++) { const r = vals[k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r), od = Math.sqrt(Math.max(om * om - g * g, 1e-12)); coef[k] = drum.c[k] * Math.exp(-g * t) * Math.sin(od * t) / od; am += Math.abs(drum.c[k]) / od * maxAbs(vecs, k * G * G); }
         modalField(coef, heatField); paintField(heatField, 0.45 * am || 1, C.div, true, vctx, view);
-        const w = view.width; vctx.strokeStyle = C.ink; vctx.lineWidth = 2; vctx.beginPath(); vctx.arc(drum.x * w, drum.y * w, Math.max(5, w / 70), 0, 2 * Math.PI); vctx.stroke();
+        const w = view.width, hs = Math.max(5, w / 75); vctx.lineWidth = 3; vctx.strokeStyle = '#fffef9'; vctx.strokeRect(drum.x * w - hs, drum.y * w - hs, 2 * hs, 2 * hs); vctx.lineWidth = 1.5; vctx.strokeStyle = C.ink; vctx.strokeRect(drum.x * w - hs, drum.y * w - hs, 2 * hs, 2 * hs);
         $('overlay').textContent = 'slowed down';
-      } else blank(nModes ? 'click the drum to play it' : 'computing…');
+      } else blank(nModes ? 'click anywhere on the drum to play it, or press “Hit the centre”' : 'computing…');
     }
   }
   requestAnimationFrame(frame);
