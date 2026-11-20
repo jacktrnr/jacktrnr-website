@@ -278,8 +278,8 @@ td.err { color: var(--muted); font-size: 11px; }
         <fieldset>
           <legend>Damping</legend>
           <div class="ctl-grid">
-            <label for="z0">Damping ζ₀</label><input type="range" id="z0" min="0" max="40" step="any" value="1" data-default="1"><output id="z0out" class="meta"></output>
-            <label for="z1">High-note damping ζ₁</label><input type="range" id="z1" min="0" max="40" step="any" value="1" data-default="1"><output id="z1out" class="meta"></output>
+            <label for="z0">Damping ζ₀</label><input type="range" id="z0" min="0" max="100" step="any" value="50" data-default="50"><output id="z0out" class="meta"></output>
+            <label for="z1">High-note damping ζ₁</label><input type="range" id="z1" min="0" max="100" step="any" value="50" data-default="50"><output id="z1out" class="meta"></output>
           </div>
           <p class="small">Mode k dies out at rate γ<sub>k</sub> = ω₁(ζ₀ + ζ₁λ<sub>k</sub>/λ₁). <span id="ringInfo"></span></p>
         </fieldset>
@@ -312,8 +312,8 @@ td.err { color: var(--muted); font-size: 11px; }
         <fieldset>
           <legend>Strike</legend>
           <div class="ctl-grid">
-            <label for="f0">Pitch f₁</label><input type="range" id="f0" min="55" max="440" value="228" data-default="228"><output id="f0out" class="meta">228 Hz</output>
-            <label for="hammer">Hammer width</label><input type="range" id="hammer" min="15" max="80" value="80" data-default="80"><output id="hamOut" class="meta">σ = 0.080</output>
+            <label for="f0">Pitch f₁</label><input type="range" id="f0" min="55" max="401" value="228" data-default="228"><output id="f0out" class="meta">228 Hz</output>
+            <label for="hammer">Hammer width</label><input type="range" id="hammer" min="15" max="145" value="80" data-default="80"><output id="hamOut" class="meta">σ = 0.080</output>
             <label for="listener">Listen</label><select id="listener"><option value="far" selected>Across the room</option><option value="contact">Contact mic</option></select><span></span>
           </div>
           <p class="explain" id="listenHelp"></p>
@@ -502,13 +502,13 @@ function thesisTri(shift, h, s) { const y0 = 0.5 + h * s / 2, A = [0.5 - s / 2, 
 function ngon(n, R) { const V = []; for (let i = 0; i < n; i++) { const th = -Math.PI / 2 + Math.PI / n + TAU * i / n; V.push([0.5 + R * Math.cos(th), 0.5 - R * Math.sin(th)]); } return polyGeom(V, [0.5, 0.5], null); }
 function reflTri(V0, V1, V2, n) { return polyGeom([V0, V1, V2], incenter(V0, V1, V2), { kind: 'refl', V0, V1, V2, n }); }
 // The spiral horn: a tube on a logarithmic spiral r = a e^{bθ}, as wide as a fixed fraction of r (so it tapers
-// smoothly all the way in), flaring over the last half-turn. Turns nest with ~70% of the radial space filled.
+// smoothly all the way in), flaring a little over the last half-turn. Turns nest with ~86% of the radial space filled.
 function hornGeom() {
-  const g0 = 1.8, b = Math.log(g0) / (2 * Math.PI), r0 = 0.12, r1 = 0.75, t0 = 0, t1 = Math.log(r1 / r0) / b, c = 0.2;
+  const g0 = 1.8, b = Math.log(g0) / (2 * Math.PI), r0 = 0.055, r1 = 0.75, t0 = 0, t1 = Math.log(r1 / r0) / b, c = 0.245;
   const k = Math.sqrt(1 + b * b) / b, L = k * (r1 - r0), flareFrom = k * (r1 / Math.sqrt(g0) - r0);
   return tubeGeom([{ spiral: [0, 0, r0, b, t0, t1] }], (sv, x, y) => {
     const r = Math.hypot(x, y); let w = c * r;
-    if (sv > flareFrom) { const u = (sv - flareFrom) / (L - flareFrom); w *= 1 + 0.55 * u * u; }
+    if (sv > flareFrom) { const u = (sv - flareFrom) / (L - flareFrom); w *= 1 + 0.1 * u * u; }
     return w;
   }, (u) => k * (r0 * Math.exp(b * (t0 + u * (t1 - t0))) - r0), 0.94); // rows evenly spaced in angle; fit the box
 }
@@ -1606,7 +1606,8 @@ function selectMode(k) {
 
 // ---------- wave: exact modal evolution with the modes in use ----------
 let waveScale = 0.02, mw = null, dview = 'drum';
-function damping() { return { z0: +$('z0').value * 0.0005, z1: +$('z1').value * 0.00008 }; }
+const Z0MIN = 1e-5, Z1MIN = 1.6e-6, ZSPAN = 2500; // log sliders: value 0..100 spans a factor of 2500
+function damping() { return { z0: Z0MIN * ZSPAN ** (+$('z0').value / 100), z1: Z1MIN * ZSPAN ** (+$('z1').value / 100) }; }
 function projectBump(x, y, sigma, peak) { // c_k = ∫ g φ_k over the grid/mesh points (peak = null: unit integral)
   const c = new F(nModes), pts = [], n = basis.n; let tot = 0;
   for (let i = 0; i < n; i++) { const d2 = (heat.xy[2 * i] - x) ** 2 + (heat.xy[2 * i + 1] - y) ** 2; if (d2 > 16 * sigma * sigma) continue; const g = Math.exp(-d2 / (2 * sigma * sigma)) * heat.Ml[i]; pts.push(i, g); tot += g; }
@@ -1926,9 +1927,9 @@ function drawSpectrum() {
 // Dragging on the ring-time panel: the left handle sets ζ₀ (how long f₁ rings), the right one sets ζ₁ (how fast the highs die).
 function svgPoint(e) { const r = $('spectrum').getBoundingClientRect(); return [(e.clientX - r.left) / r.width * specGeom.W, (e.clientY - r.top) / r.height * specGeom.H]; }
 function setDampingFrom(which, T) {
-  const g = specGeom, gamT = Math.log(1000) / T, { z0, z1 } = damping(), z0max = 40 * 0.0005, z1max = 40 * 0.00008;
-  if (which === 'hA') $('z0').value = Math.min(z0max, Math.max(0, gamT / g.w1 - z1)) / 0.0005;
-  else $('z1').value = Math.min(z1max, Math.max(0, (gamT / g.w1 - z0) / (g.fB / g.f1) ** 2)) / 0.00008;
+  const g = specGeom, gamT = Math.log(1000) / T, { z0, z1 } = damping(), toV = (z, zmin) => Math.min(100, Math.max(0, 100 * Math.log(Math.max(z, zmin) / zmin) / Math.log(ZSPAN)));
+  if (which === 'hA') $('z0').value = toV(gamT / g.w1 - z1, Z0MIN);
+  else $('z1').value = toV((gamT / g.w1 - z0) / (g.fB / g.f1) ** 2, Z1MIN);
 }
 function dampMove(e) {
   const g = specGeom, y = svgPoint(e)[1];
