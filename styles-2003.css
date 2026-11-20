@@ -216,6 +216,36 @@ main {
 }
 .hero-photo::before { display: none; }
 
+/* ---------- featured interactive: Eigendrum ---------- */
+.demo-feature {
+  position: relative;
+  margin: 0 0 30px;
+  padding: 12px 14px 14px;
+  background: #f4f1e6;
+  border: 1px solid #9b9478;
+  border-left: 5px solid var(--navy);
+  box-shadow: 2px 2px 0 #d6d0bd;
+}
+.demo-feature::after {
+  content: "NEW";
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  padding: 1px 5px;
+  color: #fff;
+  background: var(--burgundy);
+  font: bold 9px "Courier New", Courier, monospace;
+  letter-spacing: .08em;
+}
+.demo-figure,
+.demo-figure:visited { display: block; margin: 0 0 11px; padding: 3px; background: #fff; border: 1px solid #a3b0a6; }
+.demo-figure:hover { background: #fff6a9; }
+.demo-figure img { display: block; width: 100%; height: auto; }
+.demo-text h2 { margin: 0 0 6px; font: bold 24px Georgia, "Times New Roman", serif; }
+.demo-text h2 a, .demo-text h2 a:visited { color: var(--navy-dark); text-decoration: none; }
+.demo-text h2 a:hover { color: #b22020; }
+.demo-text p:not(.pub-tag) { max-width: 70ch; margin: 0 0 11px; color: #354239; font-size: 12.5px; line-height: 1.6; }
+
 /* ---------- prose and lists ---------- */
 .prose { max-width: 68ch; }
 .prose p { margin: 0 0 12px; color: #354239; }
