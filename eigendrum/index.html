@@ -116,7 +116,7 @@ canvas.sq { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; backg
 .hint { margin: 0; color: var(--muted); font-size: 12px; }
 .small { font-size: 12px; color: var(--muted); }
 .explain { margin: 0; padding: 7px 9px; color: #4c4a3b; background: var(--yellow); border: 1px solid #c8bd78; font-size: 12px; max-width: 72ch; }
-.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; max-height: 470px; overflow-y: auto; padding-right: 4px; }
+.strip { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; max-height: 470px; overflow-y: auto; padding-right: 4px; }
 .mode { display: flex; flex-direction: column; gap: 3px; padding: 3px; color: var(--ink); background: #edf1ee; border: 1px solid #a6b5a9; text-align: left; font-weight: normal; }
 .mode:hover { background: var(--yellow); }
 .mode canvas { width: 100%; aspect-ratio: 1; display: block; background: var(--void); }
@@ -335,7 +335,7 @@ td.err { color: var(--muted); font-size: 11px; }
       <div class="side" data-side="modes" hidden>
         <div class="mode-info" id="modeInfo"></div>
         <p class="small">Each mode is a pattern the drum can vibrate in all by itself, at one pitch. Red and blue parts move in opposite directions; along the nodal lines the drum stays still. Every hit is a mix of these patterns, which is what the Drum tab plays.</p>
-        <p class="small">Click a mode in the strip below, or step with ◀ ▶. Higher modes have more nodal lines and higher pitch, roughly in proportion to √λ.</p>
+        <p class="small"><b>Keyboard:</b> ← → step through the modes, ↓ jumps ahead 10 and ↑ jumps back 10. Each step plays the mode's note. You can also click a mode in the strip below, or use ◀ ▶. Higher modes have more nodal lines and higher pitch, roughly in proportion to √λ.</p>
       </div>
       <div class="side" data-side="heat" hidden>
         <p class="small" style="margin:0">Heat spreads by u<sub>t</sub> = Δu. Paint heat anywhere, or place sources that hold a fixed temperature. This runs on the full grid or mesh, not on the modes.</p>
@@ -1640,12 +1640,23 @@ function showModeInfo() {
   let m = 1; for (let j = k - 1; j >= 0 && Math.abs(vals[j] - lam) <= 1e-6 * lam; j--) m++; for (let j = k + 1; j < nModes && Math.abs(vals[j] - lam) <= 1e-6 * lam; j++) m++;
   el.innerHTML = `<b>ψ${sub(k + 1)}</b> of ${nModes.toLocaleString()}<br>λ = ${lam.toFixed(domain && domain.method === 'exact' ? 4 : 2)}<br>pitch ${fmtHz(f)} (with f₁ = ${$('f0').value} Hz)${m > 1 ? `<br>shares its pitch with ${m - 1} other mode${m > 2 ? 's' : ''}` : ''}${basis && basis.labels[k] ? `<br>${basis.labels[k]}` : ''}`;
 }
-function selectMode(k) {
+function selectMode(k, fromKeys) {
   selected = k; modesDirty = true;
-  [...$('strip').children].forEach((b, i) => b.classList.toggle('sel', i === k));
-  if (k >= STRIP_MAX && tab !== 'modes') setTab('modes');
-  if (tab === 'modes' && $('tones').checked && nModes) playTone(+$('f0').value * Math.sqrt(vals[k] / vals[0]));
+  const items = $('strip').children; [...items].forEach((b, i) => b.classList.toggle('sel', i === k));
+  if (k >= STRIP_MAX && tab !== 'modes' && !fromKeys) setTab('modes');
+  if (fromKeys && items[k]) { const st = $('strip'), it = items[k]; if (it.offsetTop < st.scrollTop) st.scrollTop = it.offsetTop - 4; else if (it.offsetTop + it.offsetHeight > st.scrollTop + st.clientHeight) st.scrollTop = it.offsetTop + it.offsetHeight - st.clientHeight + 4; } // scroll the strip only, never the page
+  if ((tab === 'modes' || fromKeys) && $('tones').checked && nModes) playTone(+$('f0').value * Math.sqrt(vals[k] / vals[0]));
+  if (tab === 'modes' || tab === 'compare') showModeInfo();
 }
+// Keyboard: ← → step through the modes, ↓ jumps ahead 10, ↑ jumps back 10 (each plays the mode's note)
+document.addEventListener('keydown', (e) => {
+  if (!nModes || e.altKey || e.ctrlKey || e.metaKey || !$('drawModal').hidden) return;
+  const tg = e.target && e.target.tagName; if (tg === 'INPUT' || tg === 'SELECT' || tg === 'TEXTAREA') return;
+  const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 10, ArrowUp: -10 }[e.key]; if (!step) return;
+  e.preventDefault();
+  const k = Math.abs(step) === 1 ? (selected + step + nModes) % nModes : Math.max(0, Math.min(nModes - 1, selected + step));
+  if (k !== selected) selectMode(k, true);
+});
 
 // ---------- wave: exact modal evolution with the modes in use ----------
 let waveScale = 0.02, mw = null, dview = 'drum';
