@@ -4,129 +4,156 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Eigendrum — Jackson Turner</title>
-<meta name="description" content="Dirichlet eigenmodes of drawn pixel shapes, exact Bessel and Lamé domains, and fitted-mesh FEM domains from my thesis; waves, heat with fixed-temperature sources, and a drum whose sound covers the whole spectrum.">
+<meta name="description" content="Dirichlet eigenmodes of drawn pixel shapes, exact Bessel and Lamé domains, and shapes from my undergrad thesis. Hit them, heat them, watch a quantum particle bounce around inside, or play them as a drum.">
 <meta name="author" content="Jackson Turner">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∇</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
 <style>
-/* Layout: an instrument bench — shape editor on the left, live view on the right, mode strip and method notes below. */
+/* Eigendrum, in the style of the rest of jacktrnr.com: an early-2000s academic homepage. */
 :root {
-  --bg: #eef1f4; --panel: #ffffff; --ink: #14202b; --muted: #5a6672; --line: #d6dce2;
-  --accent: #0f766e; --accent-ink: #ffffff; --accent-soft: #d8efec;
-  --void: #e2e7ec; --cell: #1f2d3a; --gridline: rgba(20, 32, 43, 0.07);
-  --div-neg-x: #0d366b; --div-neg: #2a78d6; --div-mid: #f0efec; --div-pos: #e34948; --div-pos-x: #7a1f20;
+  --bg: #c8cec8; --panel: #ffffff; --paper: #fffef9; --panel-alt: #edf1ed; --ink: #202a23; --muted: #59665c; --line: #a6b5a9;
+  --navy: #28513b; --navy-dark: #173524; --burgundy: #7a2438; --yellow: #fffbdc; --link: #165b36;
+  --accent: #28513b; --accent-ink: #ffffff; --accent-soft: #dce6df;
+  --void: #e4e9e4; --cell: #28513b; --gridline: rgba(32, 42, 35, 0.10);
+  --div-neg-x: #0d366b; --div-neg: #2a78d6; --div-mid: #f4f3ee; --div-pos: #e34948; --div-pos-x: #7a1f20;
   --seq-0: #fbf3ee; --seq-1: #eb6834; --seq-2: #6e250a;
-  --font-display: "Space Grotesk", "Avenir Next", "Segoe UI", system-ui, sans-serif;
-  --font-body: "Inter", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0e1419; --panel: #151d24; --ink: #e6ecf1; --muted: #93a1ad; --line: #27333e;
-    --accent: #2dd4bf; --accent-ink: #062521; --accent-soft: #123a36;
-    --void: #1b242c; --cell: #c9d6e0; --gridline: rgba(230, 236, 241, 0.06);
-    --div-neg-x: #b7d3f6; --div-neg: #3987e5; --div-mid: #383835; --div-pos: #e66767; --div-pos-x: #f7c6c6;
-    --seq-0: #221a16; --seq-1: #d95926; --seq-2: #ffd9c2;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0e1419; --panel: #151d24; --ink: #e6ecf1; --muted: #93a1ad; --line: #27333e;
-  --accent: #2dd4bf; --accent-ink: #062521; --accent-soft: #123a36;
-  --void: #1b242c; --cell: #c9d6e0; --gridline: rgba(230, 236, 241, 0.06);
-  --div-neg-x: #b7d3f6; --div-neg: #3987e5; --div-mid: #383835; --div-pos: #e66767; --div-pos-x: #f7c6c6;
-  --seq-0: #221a16; --seq-1: #d95926; --seq-2: #ffd9c2;
-  color-scheme: dark;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-body: Verdana, Arial, Helvetica, sans-serif;
+  --font-mono: "Courier New", Courier, monospace;
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 [hidden] { display: none !important; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
-.wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 16px; }
-.home { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-decoration: none; }
-.home:hover { color: var(--accent); }
-.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
-h1 { font-family: var(--font-display); font-weight: 600; font-size: 34px; letter-spacing: -0.02em; margin: 0; line-height: 1.1; }
-h1 .sub { font-weight: 500; color: var(--muted); font-size: 0.55em; letter-spacing: 0; margin-left: 10px; }
-.lede { margin: 8px 0 0; color: var(--muted); max-width: 60ch; font-size: 16px; }
-.status { font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; display: inline-flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
-.status.busy .dot { animation: pulse 0.8s ease-in-out infinite; }
-@keyframes pulse { 50% { opacity: 0.25; } }
+html { background: var(--bg); }
+body {
+  color: var(--ink); font-family: var(--font-body); font-size: 13px; line-height: 1.55;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.12) 0, rgba(255,255,255,.12) 1px, transparent 1px, transparent 4px), var(--bg);
+}
+a { color: var(--link); } a:visited { color: #62417a; } a:hover { color: #b22020; background: #fff6a9; }
+input[type="range"] { accent-color: var(--navy); }
+
+/* masthead and footer, same as the home page */
+.site-header {
+  width: min(calc(100% - 24px), 1180px); margin: 18px auto 0; padding: 11px 14px 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+  color: #fff; background: linear-gradient(#3d6a4e, var(--navy-dark)); border: 1px solid #102519; border-bottom: 3px double #dbe4dc; box-shadow: 2px 2px 0 rgba(33,45,59,.28);
+}
+.brand { display: flex; align-items: center; gap: 9px; color: #fff; text-decoration: none; }
+.brand:visited, .brand:hover { color: #fff; background: transparent; }
+.brand-mark { display: grid; place-items: center; width: 32px; height: 32px; color: var(--navy-dark); background: linear-gradient(#fff, #cdd8d0); border: 1px solid #fff; outline: 1px solid #102519; font: bold 16px Georgia, "Times New Roman", serif; }
+.brand-name { font: bold 18px Georgia, "Times New Roman", serif; text-shadow: 1px 1px #102519; }
+.site-nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 12px; }
+.site-nav a, .site-nav a:visited { color: #f7f1c9; font: bold 11px Verdana, Arial, sans-serif; text-transform: uppercase; }
+.site-nav a:hover { color: #fff; background: transparent; }
+.site-nav a[aria-current="page"] { color: #fff; text-decoration: none; border-bottom: 2px solid #f7f1c9; }
+.site-footer {
+  width: min(calc(100% - 24px), 1180px); margin: 0 auto 24px; padding: 10px 14px;
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px;
+  color: #e7eee9; background: var(--navy-dark); border: 1px solid #102519; font: 9px "Courier New", Courier, monospace;
+}
+.site-footer p { margin: 0; }
+
+/* paper frame */
+.wrap {
+  width: min(calc(100% - 24px), 1180px); margin: 0 auto; padding: 24px 22px 30px;
+  display: flex; flex-direction: column; gap: 16px;
+  background: var(--paper); border-left: 1px solid #87978b; border-right: 1px solid #87978b;
+  box-shadow: 2px 0 0 rgba(33,45,59,.12), -2px 0 0 rgba(255,255,255,.4);
+}
+@media (max-width: 700px) { .wrap { padding: 18px 12px 24px; } }
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-bottom: 14px; border-bottom: 1px dotted #788d7d; }
+.eyebrow { margin: 0 0 6px; color: var(--burgundy); font: bold 10px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+h1 { margin: 0 0 10px; color: var(--navy-dark); font: bold 36px/1 var(--font-display); }
+.lede { margin: 0; max-width: 60ch; color: #303c34; font: 15px/1.55 var(--font-display); }
+.status { font: 11px var(--font-mono); color: #4c4a3b; background: var(--yellow); border: 1px solid #c8bd78; padding: 5px 9px; display: inline-flex; gap: 8px; align-items: center; }
+.dot { width: 8px; height: 8px; background: var(--navy); flex: none; }
+.status.busy .dot { animation: pulse 0.8s steps(2) infinite; }
+@keyframes pulse { 50% { opacity: 0.2; } }
+
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 @media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 32px; }
-h2 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 0; }
-.meta { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.panel { background: var(--panel); border: 1px solid #96a79a; box-shadow: 2px 2px 0 #d5ddd7; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: -12px -12px 2px; padding: 5px 10px; background: linear-gradient(90deg, #dce6df, #f8f8f4); border-bottom: 1px solid #a5b5a9; min-height: 34px; }
+h2 { margin: 0; color: var(--navy-dark); font: bold 18px var(--font-display); }
+.meta { font: 11px var(--font-mono); color: var(--muted); }
 .toolbar, .tabctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .tabctl.col { flex-direction: column; align-items: stretch; }
-label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
-select, button, input[type="range"] { font: inherit; }
-select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; max-width: 100%; }
-button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; font-weight: 500; }
-button:hover { border-color: var(--accent); }
+label { display: inline-flex; align-items: center; gap: 6px; color: #354239; font-size: 12px; }
+select { font: 12px var(--font-body); color: var(--ink); background: #fff; border: 1px solid #7f8f83; border-radius: 0; padding: 2px 4px; max-width: 100%; }
+button { font: bold 11px var(--font-body); color: #17432b; background: linear-gradient(#fff, #d8e0da); border: 2px outset #dce4de; border-radius: 0; padding: 4px 10px; cursor: pointer; }
+button:hover { background: var(--yellow); }
+button:active { border-style: inset; }
 button:disabled { opacity: 0.5; cursor: default; }
-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-button.ghost { background: transparent; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.seg button { border: 0; border-radius: 0; background: transparent; }
-.seg button + button { border-left: 1px solid var(--line); }
-.seg button.on { background: var(--accent-soft); color: var(--ink); }
-.tabs { display: flex; gap: 2px; flex-wrap: wrap; background: var(--bg); border-radius: 8px; padding: 3px; }
-.tabs button { border: 0; background: transparent; color: var(--muted); padding: 5px 11px; border-radius: 6px; }
-.tabs button[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
-canvas.sq { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; border-radius: 6px; background: var(--void); touch-action: none; }
+button.primary { color: #fff; background: linear-gradient(#4d755b, #28513b); border-color: #71917b; }
+button.ghost { background: linear-gradient(#fff, #eef1ee); }
+:focus-visible { outline: 2px dotted var(--burgundy); outline-offset: 2px; }
+.seg { display: inline-flex; }
+.seg button + button { margin-left: -2px; }
+.seg button.on { color: #fff; background: var(--navy); border-style: inset; border-color: #6d8875; }
+.tabs { display: flex; flex-wrap: wrap; gap: 0; align-items: flex-end; }
+.tabs button { font-size: 11px; color: #354239; background: linear-gradient(#f4f6f4, #dfe6e0); border: 1px solid #96a79a; border-bottom: 0; padding: 5px 11px; margin-right: -1px; }
+.tabs button[aria-selected="true"] { color: var(--navy-dark); background: #fff; position: relative; top: 1px; padding-bottom: 6px; }
+canvas.sq { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; background: var(--void); border: 1px solid #a3b0a6; touch-action: none; }
 #editor { cursor: crosshair; }
 .viewbox { position: relative; }
-.overlay { position: absolute; left: 10px; top: 10px; font-family: var(--font-mono); font-size: 12px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--ink); padding: 3px 8px; border-radius: 4px; pointer-events: none; font-variant-numeric: tabular-nums; max-width: calc(100% - 20px); }
+.overlay { position: absolute; left: 8px; top: 8px; font: 11px var(--font-mono); background: rgba(255, 254, 249, 0.92); color: var(--ink); border: 1px solid #a6b5a9; padding: 2px 6px; pointer-events: none; max-width: calc(100% - 16px); }
 .overlay:empty { display: none; }
-.hint { margin: 0; color: var(--muted); font-size: 13.5px; }
-.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
-.mode { display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); text-align: left; }
-.mode canvas { width: 100%; aspect-ratio: 1; border-radius: 3px; display: block; background: var(--void); }
-.mode span { font-family: var(--font-mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 4px; }
-.mode span b { color: var(--ink); font-weight: 500; }
+.hint { margin: 0; color: var(--muted); font-size: 12px; }
+.small { font-size: 12px; color: var(--muted); }
+.explain { margin: 0; padding: 7px 9px; color: #4c4a3b; background: var(--yellow); border: 1px solid #c8bd78; font-size: 12px; max-width: 72ch; }
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; max-height: 470px; overflow-y: auto; padding-right: 4px; }
+.mode { display: flex; flex-direction: column; gap: 3px; padding: 3px; color: var(--ink); background: #edf1ee; border: 1px solid #a6b5a9; text-align: left; font-weight: normal; }
+.mode:hover { background: var(--yellow); }
+.mode canvas { width: 100%; aspect-ratio: 1; display: block; background: var(--void); }
+.mode span { font: 10px var(--font-mono); color: var(--muted); display: flex; justify-content: space-between; gap: 4px; }
+.mode span b { color: var(--navy-dark); }
 .mode em { font-style: normal; }
-.mode.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.spectrum { width: 100%; height: auto; display: block; }
-.spectrum text { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--muted); align-items: center; }
-.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
-.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--panel); font-family: var(--font-mono); font-size: 11.5px; padding: 4px 8px; border-radius: 4px; z-index: 20; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font-family: var(--font-mono); font-size: 12px; padding: 3px 9px; border-radius: 999px; }
-.chip.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.mode.sel { background: #fff; border-color: var(--burgundy); box-shadow: 0 0 0 1px var(--burgundy); }
+.spectrum { width: 100%; height: auto; display: block; background: #fff; }
+.spectrum text { font: 10px var(--font-mono); fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--muted); align-items: center; }
+.legend i { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; }
+.tip { position: fixed; pointer-events: none; background: var(--yellow); color: var(--ink); border: 1px solid #c8bd78; font: 11px var(--font-mono); padding: 3px 7px; z-index: 20; white-space: nowrap; box-shadow: 2px 2px 0 rgba(0,0,0,.12); }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { font: 11px var(--font-mono); padding: 2px 8px; }
+.chip.sel { color: #fff; background: var(--navy); border-style: inset; }
 .colorbar { display: inline-flex; align-items: center; gap: 6px; }
-#cbar { width: 150px; height: 10px; border-radius: 2px; display: block; }
+#cbar { width: 150px; height: 10px; display: block; border: 1px solid #a3b0a6; }
 .tablewrap { overflow-x: auto; width: 100%; }
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 12.5px; }
-th, td { padding: 5px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
-th { font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: 0.02em; vertical-align: bottom; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; background: #fff; }
+th, td { padding: 4px 8px; text-align: right; border: 1px solid #c3cec6; white-space: nowrap; }
+th { color: var(--burgundy); background: #edf1ee; font: bold 10px var(--font-mono); letter-spacing: .04em; vertical-align: bottom; }
 td { font-family: var(--font-mono); }
 th:first-child, td:first-child { text-align: left; }
 td.err { color: var(--muted); font-size: 11px; }
-.cmp-intro { margin: 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
-.method { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 16px; }
-.method h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 0; }
-.method p, .method li { color: var(--ink); max-width: 62ch; margin: 0; line-height: 1.6; }
-.method ol, .method ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
-.eq { font-family: var(--font-mono); font-size: 12.5px; background: var(--bg); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: pre; color: var(--ink); }
-.small { font-size: 13.5px; color: var(--muted); }
-.explain { font-size: 13.5px; color: var(--ink); background: var(--bg); border-radius: 6px; padding: 8px 10px; margin: 0; max-width: 70ch; }
+.cmp-intro { margin: 0; color: #354239; font-size: 12.5px; max-width: 72ch; }
+.method { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.method h3 { margin: 0; color: var(--navy-dark); font: bold 16px var(--font-display); }
+.method p, .method li { margin: 0; color: #354239; font-size: 12.5px; line-height: 1.6; max-width: 62ch; }
+.method ol, .method ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 7px; list-style: square; }
+.eq { font: 11.5px var(--font-mono); background: #f4f1e6; border: 1px solid #c9c2a6; padding: 7px 9px; overflow-x: auto; white-space: pre; color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .status.busy .dot { animation: none; } }
 </style>
 </head>
 <body>
+<header class="site-header">
+  <a class="brand" href="/"><span class="brand-mark">JT</span><span class="brand-name">Jackson Turner</span></a>
+  <nav class="site-nav" aria-label="Primary">
+    <a href="/">Home</a>
+    <a href="/research.html">Research</a>
+    <a href="/#publications">Publications</a>
+    <a href="/eigendrum/" aria-current="page">Eigendrum</a>
+  </nav>
+</header>
 <div class="wrap">
-  <a class="home" href="/">← jacktrnr.com</a>
   <header class="top">
     <div>
-      <h1>Eigendrum<span class="sub">what a shape sounds like</span></h1>
-      <p class="lede">Draw a shape, or pick one from my undergraduate thesis. You see how it vibrates right away. Then you can hit it, heat it, or play it as a drum.</p>
+      <p class="eyebrow">Interactive · from my undergrad thesis</p>
+      <h1>Eigendrum</h1>
+      <p class="lede">Draw a shape, or pick one from my undergrad thesis. You see how it vibrates right away. Then you can hit it, heat it, or play it as a drum.</p>
     </div>
     <div class="status" id="status" role="status"><span class="dot"></span><span id="statusText">starting solver…</span></div>
   </header>
@@ -148,24 +175,24 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="ex:square">Square</option>
               <option value="ex:rect">Rectangle 2:1</option>
             </optgroup>
-            <optgroup label="From the thesis (mesh)">
+            <optgroup label="From my undergrad thesis (mesh)">
               <option value="fem:slant">“Slanted” triangle</option>
               <option value="fem:mslant">“More slanted” triangle</option>
               <option value="fem:tall">Tall isosceles triangle</option>
               <option value="fem:short">Short isosceles triangle</option>
               <option value="fem:scalene">Scalene triangle</option>
-              <option value="fem:hex">Regular hexagon</option>
+              <option value="fem:hex" selected>Regular hexagon</option>
               <option value="fem:oct">Regular octagon</option>
               <option value="fem:hole2">Disk with square hole ½</option>
               <option value="fem:hole4">Disk with square hole ¼</option>
             </optgroup>
             <optgroup label="Pixel shapes (editable)">
-              <option value="px:L" selected>L-shape</option>
+              <option value="px:L">L-shape</option>
               <option value="px:square">Square</option>
               <option value="px:disk">Disk</option>
               <option value="px:annulus">Annulus</option>
-              <option value="px:tri">Triangle (thesis Fig. 6-2)</option>
-              <option value="px:snake">Snake (thesis Fig. 6-3)</option>
+              <option value="px:tri">Triangle (undergrad thesis Fig. 6-2)</option>
+              <option value="px:snake">Snake (undergrad thesis Fig. 6-3)</option>
               <option value="px:star">Star</option>
               <option value="px:heart">Heart</option>
               <option value="px:dumbbell">Dumbbell</option>
@@ -180,10 +207,10 @@ td.err { color: var(--muted); font-size: 11px; }
           <select id="brush"><option value="0.5">1 px</option><option value="1.5" selected>3 px</option><option value="2.6">5 px</option><option value="4.2">9 px</option></select>
         </label>
         <label for="gridSel">Grid
-          <select id="gridSel"><option value="48">48²</option><option value="64" selected>64²</option><option value="96">96²</option><option value="128">128²</option></select>
+          <select id="gridSel"><option value="48">48²</option><option value="64">64²</option><option value="96">96²</option><option value="128" selected>128²</option></select>
         </label>
         <label for="kSel">Modes
-          <select id="kSel"><option value="12">12</option><option value="20" selected>20</option><option value="32">32</option><option value="64">64</option><option value="128">128 (slow on pixels)</option></select>
+          <select id="kSel"><option value="12">12</option><option value="20">20</option><option value="32">32</option><option value="64">64</option><option value="128" selected>128</option></select>
         </label>
         <button id="clearBtn" class="ghost" type="button">Clear</button>
       </div>
@@ -194,11 +221,12 @@ td.err { color: var(--muted); font-size: 11px; }
     <section class="panel" aria-label="Live view">
       <div class="panel-head">
         <div class="tabs" role="tablist" aria-label="View">
-          <button role="tab" data-tab="modes" aria-selected="true" type="button">Modes</button>
+          <button role="tab" data-tab="modes" aria-selected="false" type="button">Modes</button>
           <button role="tab" data-tab="wave" aria-selected="false" type="button">Wave</button>
           <button role="tab" data-tab="heat" aria-selected="false" type="button">Heat</button>
-          <button role="tab" data-tab="drum" aria-selected="false" type="button">Drum</button>
-          <button role="tab" data-tab="compare" aria-selected="false" type="button">vs thesis</button>
+          <button role="tab" data-tab="drum" aria-selected="true" type="button">Drum</button>
+          <button role="tab" data-tab="quantum" aria-selected="false" type="button">Schrödinger</button>
+          <button role="tab" data-tab="compare" aria-selected="false" type="button">vs undergrad thesis</button>
         </div>
       </div>
       <div class="viewbox" id="viewBox"><canvas id="view" class="sq" aria-label="Field view"></canvas><div class="overlay" id="overlay"></div></div>
@@ -250,9 +278,27 @@ td.err { color: var(--muted); font-size: 11px; }
         <svg class="spectrum" id="spectrum" viewBox="0 0 600 304" role="img" aria-label="Loudness and ring time of each note from the last hit"></svg>
         <div class="meta" id="specInfo"></div>
       </div>
+      <div class="tabctl col" data-for="quantum" hidden>
+        <div class="toolbar">
+          <span class="small">Click to drop a wave packet. Drag before letting go to give it momentum.</span>
+          <div class="seg" role="group" aria-label="What to show">
+            <button id="qvRe" type="button">Re ψ</button><button id="qvAbs" type="button">|ψ|</button><button id="qvAbs2" class="on" type="button">|ψ|²</button>
+          </div>
+        </div>
+        <div class="toolbar">
+          <label for="qSigma">Packet width <input type="range" id="qSigma" min="15" max="120" value="45"> <output id="qSigmaOut" class="meta"></output></label>
+          <label for="qSpeed">Speed <input type="range" id="qSpeed" min="0" max="100" value="45"> <output id="qSpeedOut" class="meta"></output></label>
+          <button id="qMode" type="button">Start from selected mode</button>
+          <button id="qPause" class="ghost" type="button">Pause</button>
+        </div>
+        <div class="toolbar">
+          <span class="small">iψ<sub>t</sub> = −Δψ with ψ = 0 on the edge. Stepped in time on the same grid or mesh as the heat, so every mode it can hold is included, not only the ones in the strip.</span>
+          <span class="meta" id="qInfo"></span>
+        </div>
+      </div>
       <div class="tabctl" data-for="wave drum" hidden>
-        <label for="z0">Damping ζ₀ <input type="range" id="z0" min="0" max="40" value="6"> <output id="z0out" class="meta"></output></label>
-        <label for="z1">Extra damping on high notes ζ₁ <input type="range" id="z1" min="0" max="40" value="8"> <output id="z1out" class="meta"></output></label>
+        <label for="z0">Damping ζ₀ <input type="range" id="z0" min="0" max="40" value="1"> <output id="z0out" class="meta"></output></label>
+        <label for="z1">Extra damping on high notes ζ₁ <input type="range" id="z1" min="0" max="40" value="1"> <output id="z1out" class="meta"></output></label>
         <span class="small">Mode k dies out at rate γ<sub>k</sub> = ω₁(ζ₀ + ζ₁λ<sub>k</sub>/λ₁). <span id="ringInfo"></span></span>
       </div>
       <div class="tabctl col" data-for="compare" hidden>
@@ -279,8 +325,8 @@ td.err { color: var(--muted); font-size: 11px; }
 
   <section class="method">
     <div class="panel">
-      <h3>What the thesis did</h3>
-      <p>In chapter 6 of my thesis I put the shape inside a box and built its modes out of the box’s sine waves. Everything outside the shape gets a large penalty V₀. The integrals over each pixel only have to be computed once, so changing the shape is cheap.</p>
+      <h3>What my undergrad thesis did</h3>
+      <p>In chapter 6 of my undergrad thesis I put the shape inside a box and built its modes out of the box’s sine waves. Everything outside the shape gets a large penalty V₀. The integrals over each pixel only have to be computed once, so changing the shape is cheap.</p>
       <div class="eq">H_nm = λ_n δ_nm + V₀ · (sum of pixel integrals outside the shape)
 eig(H) → the drum’s modes, as V₀ → ∞</div>
       <p class="small">The downside is a large table, a dense matrix, and an error that only shrinks like 1/√V₀.</p>
@@ -292,14 +338,14 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
         <li>Use the pixels themselves as the building blocks. What remains is a sparse matrix with five entries per row.</li>
         <li>Only ask for the lowest modes, and start from the last answer while you draw. A brush stroke usually takes a few milliseconds.</li>
       </ul>
-      <p class="small">The “vs thesis” tab runs both methods side by side.</p>
+      <p class="small">The “vs undergrad thesis” tab runs both methods side by side.</p>
     </div>
     <div class="panel">
       <h3>Smooth shapes</h3>
       <ul>
         <li>Round shapes use Bessel functions: the disk, quarter disk, semicircle and annulus.</li>
         <li>Three triangles (equilateral, right isosceles and 30-60-90) have exact answers built from sums of plane waves, a trick that goes back to Lamé.</li>
-        <li>The other shapes from the thesis have no formula. They are solved with finite elements on a mesh that follows the real edge.</li>
+        <li>The other shapes from my undergrad thesis have no formula. They are solved with finite elements on a mesh that follows the real edge.</li>
       </ul>
       <p class="small">Either way the edge is drawn as a smooth curve, not as pixel steps.</p>
     </div>
@@ -311,10 +357,15 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
         <li><b>Across the room</b> is what a microphone a few metres away hears. Sound comes from the air the drum pushes, so modes whose up and down halves cancel are almost silent. You hear fewer notes and a sharper attack.</li>
         <li><b>Contact mic</b> is a sensor stuck to the drum where you hit it. It picks up every mode the hit excites, weighted toward the low ones, so it sounds darker and fuller.</li>
         <li>For heat, the edges stay at 0° and each source stays at its own temperature. “Steady state” jumps straight to where the temperature settles.</li>
+        <li>The Schrödinger tab solves iψ<sub>t</sub> = −Δψ for a particle trapped in the shape. A wave packet moves, spreads, bounces off the edges and interferes with itself. A single mode just turns its phase, so its |ψ|² never changes.</li>
       </ul>
     </div>
   </section>
 </div>
+<footer class="site-footer">
+  <p>© 2026 Jackson Turner</p>
+  <p>Eigendrum · built on my 2021 undergrad thesis, University of Utah</p>
+</footer>
 <div class="tip" id="tip" hidden></div>
 
 <script id="shared-src" type="text/plain">
@@ -371,15 +422,15 @@ const GEOMS = {
   hemi: { how: 'plane waves, G₂ reflection group', make: () => reflTri([0.05, 0.8], [0.95, 0.8], [0.95, 0.8 - 0.9 / Math.sqrt(3)], 6) },
   square: { how: 'sin·sin', make: () => Object.assign(polyGeom([[0.05, 0.05], [0.95, 0.05], [0.95, 0.95], [0.05, 0.95]], [0.5, 0.5], null), { analytic: { kind: 'rect', x0: 0.05, y0: 0.05, Lx: 0.9, Ly: 0.9 } }) },
   rect: { how: 'sin·sin', make: () => Object.assign(polyGeom([[0.05, 0.275], [0.95, 0.275], [0.95, 0.725], [0.05, 0.725]], [0.5, 0.5], null), { analytic: { kind: 'rect', x0: 0.05, y0: 0.275, Lx: 0.9, Ly: 0.45 } }) },
-  slant: { how: 'apex shifted 0.01 (thesis Fig. 2-7)', make: () => thesisTri(0.01, H3, 0.9) },
-  mslant: { how: 'apex shifted 0.05 (thesis Fig. 2-7)', make: () => thesisTri(0.05, H3, 0.9) },
-  tall: { how: 'height √3/2 + 1/4 (thesis Fig. 2-7)', make: () => thesisTri(0, H3 + 0.25, 0.8) },
-  short: { how: 'height √3/4 (thesis Fig. 2-7)', make: () => thesisTri(0, H3 / 2, 0.9) },
-  scalene: { how: 'apex shifted 0.4 (thesis Fig. 2-7)', make: () => thesisTri(0.4, H3, 0.9) },
-  hex: { how: 'thesis Fig. 2-9', make: () => ngon(6, 0.45) },
-  oct: { how: 'thesis Fig. 2-9', make: () => ngon(8, 0.45) },
-  hole2: { how: 'thesis Fig. 2-10', make: () => ({ type: 'ring', center: [0.5, 0.5], outer: { kind: 'circle', c: [0.5, 0.5], r: 0.45 }, inner: { kind: 'square', c: [0.5, 0.5], half: 0.45 / 4 }, analytic: null }) },
-  hole4: { how: 'thesis Fig. 2-10', make: () => ({ type: 'ring', center: [0.5, 0.5], outer: { kind: 'circle', c: [0.5, 0.5], r: 0.45 }, inner: { kind: 'square', c: [0.5, 0.5], half: 0.45 / 8 }, analytic: null }) },
+  slant: { how: 'apex shifted 0.01 (undergrad thesis Fig. 2-7)', make: () => thesisTri(0.01, H3, 0.9) },
+  mslant: { how: 'apex shifted 0.05 (undergrad thesis Fig. 2-7)', make: () => thesisTri(0.05, H3, 0.9) },
+  tall: { how: 'height √3/2 + 1/4 (undergrad thesis Fig. 2-7)', make: () => thesisTri(0, H3 + 0.25, 0.8) },
+  short: { how: 'height √3/4 (undergrad thesis Fig. 2-7)', make: () => thesisTri(0, H3 / 2, 0.9) },
+  scalene: { how: 'apex shifted 0.4 (undergrad thesis Fig. 2-7)', make: () => thesisTri(0.4, H3, 0.9) },
+  hex: { how: 'undergrad thesis Fig. 2-9', make: () => ngon(6, 0.45) },
+  oct: { how: 'undergrad thesis Fig. 2-9', make: () => ngon(8, 0.45) },
+  hole2: { how: 'undergrad thesis Fig. 2-10', make: () => ({ type: 'ring', center: [0.5, 0.5], outer: { kind: 'circle', c: [0.5, 0.5], r: 0.45 }, inner: { kind: 'square', c: [0.5, 0.5], half: 0.45 / 4 }, analytic: null }) },
+  hole4: { how: 'undergrad thesis Fig. 2-10', make: () => ({ type: 'ring', center: [0.5, 0.5], outer: { kind: 'circle', c: [0.5, 0.5], r: 0.45 }, inner: { kind: 'square', c: [0.5, 0.5], half: 0.45 / 8 }, analytic: null }) },
 };
 </script>
 
@@ -986,10 +1037,10 @@ const F = Float64Array;
 const SHARED = $('shared-src').textContent;
 const SH = new Function(SHARED + '\nreturn { GEOMS, geomPolys, rasterize, inGeom };')();
 const worker = new Worker(URL.createObjectURL(new Blob([SHARED, '\n', $('worker-src').textContent], { type: 'text/javascript' })));
-const RS = 160, KX = 64;
+const RS = 192, KX = 64;
 
 // ---------- state ----------
-let Gp = 64, G = 64, K = 20;
+let Gp = 128, G = 128, K = 128;
 let mask = new Uint8Array(G * G);
 let domain = null;            // smooth domain, or null for pixel shapes
 let vals = new F(0), vecs = new Float32Array(0), nModes = 0, resG = G;
@@ -1057,7 +1108,7 @@ function drawEditor() {
   for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) if (mask[y * G + x]) ectx.fillRect(Math.floor(x * cs), Math.floor(y * cs), Math.ceil(cs), Math.ceil(cs));
   if (cs >= 5) { ectx.strokeStyle = C.grid; ectx.lineWidth = 1; ectx.beginPath(); for (let i = 1; i < G; i++) { const p = Math.round(i * cs) + 0.5; ectx.moveTo(p, 0); ectx.lineTo(p, w); ectx.moveTo(0, p); ectx.lineTo(w, p); } ectx.stroke(); }
   $('shapeMeta').textContent = `${mask.reduce((a, b) => a + b, 0).toLocaleString()} px · h = 1/${G}`;
-  $('hint').textContent = 'Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine.';
+  $('hint').textContent = 'Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine.' + (K >= 64 && G >= 96 ? ' With this many modes on a fine grid each stroke takes a few seconds; choose fewer modes for live drawing.' : '');
 }
 let painting = false, last = null, eraseNow = false;
 function cellAt(c, e) { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * G, (e.clientY - r.top) / r.height * G]; }
@@ -1281,7 +1332,7 @@ function heatFromFEM(d) {
 }
 function setHeat(h) {
   let bound = 0; for (let i = 0; i < h.n; i++) { let s = 0; for (let q = h.rp[i]; q < h.rp[i + 1]; q++) s += Math.abs(h.kv[q]); bound = Math.max(bound, s / h.Ml[i]); }
-  heat = { ...h, bound, u: new F(h.n), t: 0 }; heatField = new F(G * G);
+  heat = { ...h, bound, u: new F(h.n), t: 0 }; heatField = new F(G * G); qs = null;
   sources = sources.filter(s => insideAt(s.x, s.y)); sources.forEach(s => { s.nodes = sourceNodes(s); });
   if (selSrc >= sources.length) selSrc = sources.length - 1;
   clampSources(); renderSources();
@@ -1335,6 +1386,66 @@ function drawColorbar() {
   for (let i = 0; i < c.width; i++) { const t = i / (c.width - 1), idx = Math.round(t * 255); x.fillStyle = `rgb(${lut[idx * 3]},${lut[idx * 3 + 1]},${lut[idx * 3 + 2]})`; x.fillRect(i, 0, 1, c.height); }
   $('cbMin').textContent = signed ? '−100°' : '0°'; $('cbMax').textContent = '+100°';
 }
+
+// ---------- Schrödinger: iψ_t = Hψ, H = M⁻¹K, Visscher's staggered leapfrog (R_t = H I, I_t = −H R) ----------
+let qs = null, qView = 'abs2', qPaused = false, qDrag = null, qScale = 1, qRe = null, qIm = null;
+const qSigma = () => +$('qSigma').value / 1000, qRate = () => 0.0004 * Math.pow(10, +$('qSpeed').value / 50);
+function qShowSliders() { $('qSigmaOut').textContent = qSigma().toFixed(3); $('qSpeedOut').textContent = `${qRate().toPrecision(2)} per s`; }
+function qKMax() { return 0.35 * Math.PI / heat.h; } // keep the packet well inside what the grid/mesh can resolve
+function qNormalize(R, I) { let s = 0; for (let i = 0; i < heat.n; i++) s += (R[i] * R[i] + I[i] * I[i]) * heat.Ml[i]; const c = 1 / Math.sqrt(s || 1); for (let i = 0; i < heat.n; i++) { R[i] *= c; I[i] *= c; } }
+function qPacket(x0, y0, kx, ky) {
+  if (!heat) return; const n = heat.n, R = new F(n), I = new F(n), sg = Math.max(qSigma(), 2 * heat.h);
+  for (let i = 0; i < n; i++) { const dx = heat.xy[2 * i] - x0, dy = heat.xy[2 * i + 1] - y0, a = Math.exp(-(dx * dx + dy * dy) / (4 * sg * sg)), ph = kx * dx + ky * dy; R[i] = a * Math.cos(ph); I[i] = a * Math.sin(ph); }
+  qNormalize(R, I); qs = { R, I, t: 0, k: Math.hypot(kx, ky) }; qScale = 0;
+}
+function qDefaultPoint() { // interior node nearest the centroid of the shape
+  let cx = 0, cy = 0; for (let i = 0; i < heat.n; i++) { cx += heat.xy[2 * i]; cy += heat.xy[2 * i + 1]; } cx /= heat.n; cy /= heat.n;
+  let best = 1e9, bi = 0; for (let i = 0; i < heat.n; i++) { const d = (heat.xy[2 * i] - cx) ** 2 + (heat.xy[2 * i + 1] - cy) ** 2; if (d < best) { best = d; bi = i; } }
+  return [heat.xy[2 * bi], heat.xy[2 * bi + 1]];
+}
+function qFromMode() {
+  if (!heat || !nModes) return; const n = heat.n, R = new F(n), I = new F(n), o = selected * G * G;
+  for (let i = 0; i < n; i++) { const px = Math.min(G - 1, Math.floor(heat.xy[2 * i] * G)), py = Math.min(G - 1, Math.floor(heat.xy[2 * i + 1] * G)); R[i] = vecs[o + py * G + px]; }
+  qNormalize(R, I); qs = { R, I, t: 0, k: Math.sqrt(vals[selected]) }; qScale = 0;
+}
+function qMul(x, y) { const { n, rp, ci, kv, Ml } = heat; for (let i = 0; i < n; i++) { let t = 0; for (let q = rp[i]; q < rp[i + 1]; q++) t += kv[q] * x[ci[q]]; y[i] = t / Ml[i]; } }
+function qStep(dtPhys) {
+  const n = heat.n, dtMax = 1.6 / heat.bound, m = Math.min(600, Math.max(1, Math.ceil(dtPhys / dtMax))), dt = dtPhys / m, tmp = new F(n), { R, I } = qs;
+  for (let s = 0; s < m; s++) { qMul(I, tmp); for (let i = 0; i < n; i++) R[i] += dt * tmp[i]; qMul(R, tmp); for (let i = 0; i < n; i++) I[i] -= dt * tmp[i]; }
+  qs.t += dtPhys;
+}
+function qStats() {
+  const { n, rp, ci, kv, Ml } = heat, { R, I } = qs; let nrm = 0, e = 0;
+  for (let i = 0; i < n; i++) { nrm += (R[i] * R[i] + I[i] * I[i]) * Ml[i]; let a = 0, b = 0; for (let q = rp[i]; q < rp[i + 1]; q++) { a += kv[q] * R[ci[q]]; b += kv[q] * I[ci[q]]; } e += R[i] * a + I[i] * b; }
+  return { nrm, e: e / nrm };
+}
+function setQView(v) { qView = v; qScale = 0; for (const [id, k] of [['qvRe', 're'], ['qvAbs', 'abs'], ['qvAbs2', 'abs2']]) $(id).classList.toggle('on', k === v); }
+$('qvRe').onclick = () => setQView('re'); $('qvAbs').onclick = () => setQView('abs'); $('qvAbs2').onclick = () => setQView('abs2');
+$('qMode').onclick = () => qFromMode();
+$('qPause').onclick = () => { qPaused = !qPaused; $('qPause').textContent = qPaused ? 'Play' : 'Pause'; };
+$('qSigma').addEventListener('input', qShowSliders); $('qSpeed').addEventListener('input', qShowSliders); qShowSliders();
+function renderQuantum(dt) {
+  const w = fitCanvas(view);
+  if (!heat || (domain && resG !== G)) { blank('computing…'); return; }
+  if (!qs || qs.R.length !== heat.n) { const [rx, ry] = qDefaultPoint(); qPacket(rx, ry, 0.3 * qKMax(), 0.12 * qKMax()); }
+  if (!qPaused) qStep(dt * qRate());
+  if (!qRe || qRe.length !== G * G) { qRe = new F(G * G); qIm = new F(G * G); }
+  heat.toRaster(qs.R, qRe); heat.toRaster(qs.I, qIm);
+  let mx = 0;
+  if (qView === 're') { for (let p = 0; p < G * G; p++) mx = Math.max(mx, Math.abs(qRe[p])); }
+  else for (let p = 0; p < G * G; p++) { const a2 = qRe[p] * qRe[p] + qIm[p] * qIm[p], v = qView === 'abs2' ? a2 : Math.sqrt(a2); qRe[p] = v; if (v > mx) mx = v; }
+  qScale = Math.max(qScale * 0.995, mx, 1e-12);
+  paintField(qRe, qScale, qView === 're' ? C.div : C.seq, qView === 're', vctx, view);
+  if (qDrag) { // momentum arrow while dragging
+    const x0 = qDrag.x0 * w, y0 = qDrag.y0 * w, x1 = qDrag.x1 * w, y1 = qDrag.y1 * w, a = Math.atan2(y1 - y0, x1 - x0), hl = Math.max(8, w / 50);
+    vctx.strokeStyle = C.ink; vctx.fillStyle = C.ink; vctx.lineWidth = 2; vctx.beginPath(); vctx.moveTo(x0, y0); vctx.lineTo(x1, y1); vctx.stroke();
+    vctx.beginPath(); vctx.moveTo(x1, y1); vctx.lineTo(x1 - hl * Math.cos(a - 0.4), y1 - hl * Math.sin(a - 0.4)); vctx.lineTo(x1 - hl * Math.cos(a + 0.4), y1 - hl * Math.sin(a + 0.4)); vctx.closePath(); vctx.fill();
+  }
+  const st = qStats();
+  $('qInfo').textContent = `t = ${qs.t.toExponential(2)} · ∫|ψ|² = ${st.nrm.toFixed(4)} · ⟨E⟩ = ${st.e.toFixed(1)}`;
+  $('overlay').textContent = `${qView === 're' ? 'Re ψ' : qView === 'abs' ? '|ψ|' : '|ψ|²'} · ${domain ? 'on the mesh' : 'pixel grid'}`;
+}
+function qDragK() { const k = Math.min(qKMax(), Math.hypot(qDrag.x1 - qDrag.x0, qDrag.y1 - qDrag.y0) * 4 * qKMax()), a = Math.atan2(qDrag.y1 - qDrag.y0, qDrag.x1 - qDrag.x0); return k < 1e-9 ? [0, 0] : [k * Math.cos(a), k * Math.sin(a)]; }
 
 // ---------- audio ----------
 let actx = null, strikeSeq = 0, refCache = {}, pendingStrikes = new Map(), lastSpec = null, drum = null;
@@ -1413,7 +1524,8 @@ function fmtSec(t) { return t >= 10 ? t.toFixed(0) + ' s' : t >= 1 ? t.toFixed(1
 function showDamping() {
   const { z0, z1 } = damping(), f1 = +$('f0').value, w1 = 2 * Math.PI * f1;
   $('z0out').textContent = z0.toFixed(4); $('z1out').textContent = z1.toFixed(5);
-  const fTop = lastSpec ? Math.max(...toOscillators(lastSpec.parts, lastSpec.listener).map(o => o.f).filter(f => f < lastSpec.nyq)) : f1 * 10;
+  const fCutNow = lastSpec && vals[0] ? f1 * Math.sqrt(18.4 / (lastSpec.info.sigma ** 2) / vals[0]) : Infinity;
+  const fTop = lastSpec ? Math.min(fCutNow, Math.max(...toOscillators(lastSpec.parts, lastSpec.listener).map(o => o.f).filter(f => f < lastSpec.nyq))) : f1 * 10;
   $('ringInfo').textContent = `The fundamental rings for ${fmtSec(T60(w1 * (z0 + z1)))} (T60); a note at ${fTop >= 1000 ? (fTop / 1000).toFixed(1) + ' kHz' : fTop.toFixed(0) + ' Hz'} rings for ${fmtSec(T60(w1 * (z0 + z1 * (fTop / f1) ** 2)))}.`;
 }
 function drawSpectrum() {
@@ -1483,19 +1595,19 @@ function renderCompare() {
   const cols = [];
   let ref = null, refName = '';
   if (domain) {
-    $('cmpIntro').textContent = 'The same shape solved four ways. “Exact” uses the formula, when there is one. “Mesh” uses finite elements on a mesh that follows the edge. The pixel solver and the thesis method both work on the shape turned into pixels, at the grid size set on the left, so curved edges cost them some accuracy.';
+    $('cmpIntro').textContent = 'The same shape solved four ways. “Exact” uses the formula, when there is one. “Mesh” uses finite elements on a mesh that follows the edge. The pixel solver and the undergrad thesis method both work on the shape turned into pixels, at the grid size set on the left, so curved edges cost them some accuracy.';
     if (domain.method === 'exact') { ref = Array.from(vals); refName = 'exact'; cols.push({ name: 'Exact', sub: domain.how, v: ref }); }
     const fem = domain.method === 'fem' ? { vals, nodes: domain.nodes, ms: lastMs } : cmp.fem;
     const femV = fem ? Array.from(fem.vals) : null;
     cols.push({ name: 'Mesh', sub: fem ? `${fem.nodes.toLocaleString()} points · ${fem.ms.toFixed(0)} ms` : 'not run', v: femV });
     if (!ref && femV) { ref = femV; refName = 'FEM'; }
     cols.push({ name: `Pixel solver, ${Gp}²`, sub: cmp.pix ? `${cmp.pix.n.toLocaleString()} px · ${cmp.pix.ms.toFixed(0)} ms` : 'not run', v: cmp.pix ? Array.from(cmp.pix.vals) : null });
-    cols.push({ name: `Thesis method, ${Gp}²`, sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
+    cols.push({ name: `Undergrad thesis method, ${Gp}²`, sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
   } else {
-    $('cmpIntro').textContent = 'The method from chapter 6 of my thesis next to the faster solver used on this page, on the same pixels. If the pixels form a rectangle the exact answer is known, so you also see each method’s error.';
+    $('cmpIntro').textContent = 'The method from chapter 6 of my undergrad thesis next to the faster solver used on this page, on the same pixels. If the pixels form a rectangle the exact answer is known, so you also see each method’s error.';
     const rect = rectInfo();
     if (rect) { ref = exactRect(rect, rows); refName = 'exact'; cols.push({ name: 'Exact', sub: 'pixel rectangle', v: ref }); }
-    cols.push({ name: 'Thesis method', sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
+    cols.push({ name: 'Undergrad thesis method', sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
     cols.push({ name: 'This page', sub: `${mask.reduce((a, b) => a + b, 0).toLocaleString()} px · ${lastMs.toFixed(0)} ms`, v: Array.from(vals) });
   }
   let h = '<thead><tr><th>k</th>';
@@ -1539,13 +1651,15 @@ view.addEventListener('pointerdown', (e) => {
       renderSources(); drawColorbar();
     } else heatPaint(ux, uy);
   } else if (tab === 'drum') strike(cx, cy, true);
+  else if (tab === 'quantum' && heat && insideAt(ux, uy)) qDrag = { x0: ux, y0: uy, x1: ux, y1: uy };
 });
 view.addEventListener('pointermove', (e) => {
+  if (viewDown && tab === 'quantum' && qDrag) { const [ux, uy] = unitAt(e); qDrag.x1 = ux; qDrag.y1 = uy; return; }
   if (!viewDown || tab !== 'heat' || !heat) return; const [ux, uy] = unitAt(e);
   if (heatTool === 'source' && dragSrc >= 0) { if (insideAt(ux, uy)) { const s = sources[dragSrc]; for (const i of s.nodes) heat.u[i] = 0; s.x = ux; s.y = uy; s.nodes = sourceNodes(s); clampSources(); } }
   else if (heatTool === 'paint') heatPaint(ux, uy);
 });
-view.addEventListener('pointerup', () => { viewDown = false; dragSrc = -1; });
+view.addEventListener('pointerup', () => { viewDown = false; dragSrc = -1; if (qDrag) { const [kx, ky] = qDragK(); qPacket(qDrag.x0, qDrag.y0, kx, ky); qDrag = null; } });
 function bumpFD(field, cx, cy, r, amp) {
   for (let y = Math.max(0, Math.floor(cy - 3 * r)); y <= Math.min(G - 1, Math.ceil(cy + 3 * r)); y++) for (let x = Math.max(0, Math.floor(cx - 3 * r)); x <= Math.min(G - 1, Math.ceil(cx + 3 * r)); x++) {
     const p = y * G + x; if (mask[p]) field[p] += amp * Math.exp(-((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) / (2 * r * r));
@@ -1613,6 +1727,8 @@ function frame(now) {
         $('heatInfo').textContent = `time ${heat.t.toExponential(2)}`;
         $('overlay').textContent = domain ? 'heat · on the mesh' : 'heat · pixel grid';
       }
+    } else if (tab === 'quantum') {
+      renderQuantum(dt);
     } else if (tab === 'drum') {
       fitCanvas(view);
       if (drum && nModes && resG === G) {
@@ -1648,7 +1764,8 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors
 new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 readColors();
-applyPreset('L');
+loadSmooth('hex');
+setTab('drum');
 drawSpectrum(); showDamping();
 requestAnimationFrame(frame);
 })();
