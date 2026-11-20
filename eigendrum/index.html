@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eigendrum — Jackson Turner</title>
+<meta name="description" content="Draw a pixel shape and get its Dirichlet eigenmodes live; simulate waves and heat, or play it as a drum. A sparse V₀→∞ limit of the partitioned expansion method.">
+<meta name="author" content="Jackson Turner">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∇</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: an instrument bench — shape editor on the left, live view on the right, mode strip and method notes below. */
+:root {
+  --bg: #eef1f4;
+  --panel: #ffffff;
+  --ink: #14202b;
+  --muted: #5a6672;
+  --line: #d6dce2;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --accent-soft: #d8efec;
+  --void: #e2e7ec;
+  --cell: #1f2d3a;
+  --gridline: rgba(20, 32, 43, 0.07);
+  --div-neg-x: #0d366b; --div-neg: #2a78d6; --div-mid: #f0efec; --div-pos: #e34948; --div-pos-x: #7a1f20;
+  --seq-0: #fbf3ee; --seq-1: #eb6834; --seq-2: #6e250a;
+  --cat: #6250d6;
+  --font-display: "Space Grotesk", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1419; --panel: #151d24; --ink: #e6ecf1; --muted: #93a1ad; --line: #27333e;
+    --accent: #2dd4bf; --accent-ink: #062521; --accent-soft: #123a36;
+    --void: #1b242c; --cell: #c9d6e0; --gridline: rgba(230, 236, 241, 0.06);
+    --div-neg-x: #b7d3f6; --div-neg: #3987e5; --div-mid: #383835; --div-pos: #e66767; --div-pos-x: #f7c6c6;
+    --seq-0: #221a16; --seq-1: #d95926; --seq-2: #ffd9c2;
+    --cat: #9085e9;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1419; --panel: #151d24; --ink: #e6ecf1; --muted: #93a1ad; --line: #27333e;
+  --accent: #2dd4bf; --accent-ink: #062521; --accent-soft: #123a36;
+  --void: #1b242c; --cell: #c9d6e0; --gridline: rgba(230, 236, 241, 0.06);
+  --div-neg-x: #b7d3f6; --div-neg: #3987e5; --div-mid: #383835; --div-pos: #e66767; --div-pos-x: #f7c6c6;
+  --seq-0: #221a16; --seq-1: #d95926; --seq-2: #ffd9c2;
+  --cat: #9085e9;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+.home { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-decoration: none; }
+.home:hover { color: var(--accent); }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 16px; }
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 34px; letter-spacing: -0.02em; margin: 0; line-height: 1.1; }
+h1 .sub { font-weight: 500; color: var(--muted); font-size: 0.55em; letter-spacing: 0; margin-left: 10px; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.status { font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; display: inline-flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+.status.busy .dot { animation: pulse 0.8s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 32px; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 0; }
+.meta { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.toolbar, .tabctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+select, button, input[type="range"] { font: inherit; }
+select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; font-weight: 500; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.ghost { background: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--accent-soft); color: var(--ink); }
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; background: var(--bg); border-radius: 8px; padding: 3px; }
+.tabs button { border: 0; background: transparent; color: var(--muted); padding: 5px 11px; border-radius: 6px; }
+.tabs button[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+canvas.sq { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; border-radius: 6px; background: var(--void); touch-action: none; image-rendering: pixelated; }
+#editor { cursor: crosshair; }
+.viewbox { position: relative; }
+.overlay { position: absolute; left: 10px; top: 10px; font-family: var(--font-mono); font-size: 12px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--ink); padding: 3px 8px; border-radius: 4px; pointer-events: none; font-variant-numeric: tabular-nums; }
+.overlay:empty { display: none; }
+.hint { margin: 0; color: var(--muted); font-size: 12.5px; }
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.mode { display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); text-align: left; }
+.mode canvas { width: 100%; aspect-ratio: 1; image-rendering: pixelated; border-radius: 3px; display: block; background: var(--void); }
+.mode span { font-family: var(--font-mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 4px; }
+.mode span b { color: var(--ink); font-weight: 500; }
+.mode.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.spectrum { width: 100%; height: auto; display: block; }
+.spectrum text { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--panel); font-family: var(--font-mono); font-size: 11.5px; padding: 4px 8px; border-radius: 4px; z-index: 20; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; width: 100%; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+th, td { padding: 5px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: 0.02em; vertical-align: bottom; }
+td { font-family: var(--font-mono); }
+th:first-child, td:first-child { text-align: left; }
+td.err { color: var(--muted); font-size: 11px; }
+.cmp-intro { margin: 0; color: var(--muted); font-size: 13px; max-width: 70ch; }
+.method { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 860px) { .method { grid-template-columns: minmax(0, 1fr); } }
+.method h3 { font-family: var(--font-display); font-weight: 600; font-size: 15px; margin: 0; }
+.method p, .method li { color: var(--ink); max-width: 66ch; margin: 0; }
+.method ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.eq { font-family: var(--font-mono); font-size: 12.5px; background: var(--bg); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: pre; color: var(--ink); }
+.small { font-size: 12.5px; color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .status.busy .dot { animation: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <a class="home" href="/">← jacktrnr.com</a>
+  <header class="top">
+    <div>
+      <h1>Eigendrum<span class="sub">pixel partition eigensolver</span></h1>
+      <p class="lede">Paint a shape on the pixel grid. Its Dirichlet eigenmodes update while you draw. Then strike it as a membrane, let heat flow through it, or play it as a drum.</p>
+    </div>
+    <div class="status" id="status" role="status"><span class="dot"></span><span id="statusText">starting solver…</span></div>
+  </header>
+
+  <main class="stage">
+    <section class="panel" aria-labelledby="shape-h">
+      <div class="panel-head"><h2 id="shape-h">Shape Ω′</h2><span class="meta" id="shapeMeta"></span></div>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Brush mode">
+          <button id="toolDraw" class="on" type="button">Draw</button><button id="toolErase" type="button">Erase</button>
+        </div>
+        <label for="brush">Brush
+          <select id="brush"><option value="0.5">1 px</option><option value="1.5" selected>3 px</option><option value="2.6">5 px</option><option value="4.2">9 px</option></select>
+        </label>
+        <label for="preset">Preset
+          <select id="preset">
+            <option value="L" selected>L-shape</option>
+            <option value="square">Square</option>
+            <option value="rect">Rectangle 2:1</option>
+            <option value="disk">Disk</option>
+            <option value="annulus">Annulus</option>
+            <option value="tri">Triangle (thesis Fig. 6-2)</option>
+            <option value="snake">Snake (thesis Fig. 6-3)</option>
+            <option value="star">Star</option>
+            <option value="heart">Heart</option>
+            <option value="dumbbell">Dumbbell</option>
+          </select>
+        </label>
+        <label for="gridSel">Grid
+          <select id="gridSel"><option value="48">48²</option><option value="64" selected>64²</option><option value="96">96²</option><option value="128">128²</option></select>
+        </label>
+        <label for="kSel">Modes
+          <select id="kSel"><option value="12">12</option><option value="20" selected>20</option><option value="32">32</option></select>
+        </label>
+        <button id="clearBtn" class="ghost" type="button">Clear</button>
+      </div>
+      <canvas id="editor" class="sq" aria-label="Pixel shape editor"></canvas>
+      <p class="hint">Drag to paint pixels. Hold Shift or right-click to erase. Separate islands are fine; each one becomes its own drum.</p>
+    </section>
+
+    <section class="panel" aria-label="Live view">
+      <div class="panel-head">
+        <div class="tabs" role="tablist" aria-label="View">
+          <button role="tab" data-tab="modes" aria-selected="true" type="button">Modes</button>
+          <button role="tab" data-tab="wave" aria-selected="false" type="button">Wave</button>
+          <button role="tab" data-tab="heat" aria-selected="false" type="button">Heat</button>
+          <button role="tab" data-tab="drum" aria-selected="false" type="button">Drum</button>
+          <button role="tab" data-tab="compare" aria-selected="false" type="button">vs thesis</button>
+        </div>
+      </div>
+      <div class="viewbox" id="viewBox"><canvas id="view" class="sq" aria-label="Field view"></canvas><div class="overlay" id="overlay"></div></div>
+
+      <div class="tabctl" data-for="modes">
+        <label><input type="checkbox" id="nodal" checked> Nodal lines</label>
+        <label><input type="checkbox" id="tones" checked> Play mode tone on click</label>
+        <span class="small">Blue and red are opposite signs. Nodal lines are where the membrane stays still.</span>
+      </div>
+      <div class="tabctl" data-for="wave" hidden>
+        <span class="small">Click to strike: u<sub>tt</sub> = Δu.</span>
+        <button id="waveMode" type="button">Ring selected mode</button>
+        <button id="waveReset" class="ghost" type="button">Stop</button>
+        <label><input type="checkbox" id="waveSound" checked> Sound</label>
+      </div>
+      <div class="tabctl" data-for="wave drum" hidden>
+        <label for="z0">Damping ζ₀ <input type="range" id="z0" min="0" max="40" value="6"></label>
+        <label for="z1">High-mode loss ζ₁ <input type="range" id="z1" min="0" max="40" value="8"></label>
+        <span class="small">One equation for sound and simulation: u<sub>tt</sub> + 2γ₀u<sub>t</sub> − 2ηΔu<sub>t</sub> = Δu, so mode k decays at γ<sub>k</sub> = ω₁(ζ₀ + ζ₁λ<sub>k</sub>/λ₁).</span>
+      </div>
+      <div class="tabctl" data-for="heat" hidden>
+        <span class="small">Drag to add heat: u<sub>t</sub> = Δu, walls held at 0.</span>
+        <button id="heatMode" type="button">Load selected mode</button>
+        <button id="heatReset" class="ghost" type="button">Cool</button>
+        <span class="meta" id="heatInfo"></span>
+      </div>
+      <div class="tabctl" data-for="drum" hidden style="flex-direction: column; align-items: stretch;">
+        <div class="toolbar">
+          <span class="small">Click the drum to play it. Each mode rings at f<sub>k</sub> = f<sub>1</sub>·√(λ<sub>k</sub>/λ<sub>1</sub>).</span>
+          <label for="f0">f<sub>1</sub> <input type="range" id="f0" min="55" max="440" value="110"> <output id="f0out" class="meta">110 Hz</output></label>
+          <label for="listener">Listen
+            <select id="listener"><option value="far" selected>Far field (radiated pressure)</option><option value="contact">Contact pickup at strike</option></select>
+          </label>
+        </div>
+        <div>
+          <div class="meta" style="margin-bottom:4px">Spectrum of the last strike (what the listener hears) · repeated eigenvalues are merged and marked ×m · dashed lines mark harmonics n·f<sub>1</sub>, where a string's overtones would sit</div>
+          <svg class="spectrum" id="spectrum" viewBox="0 0 600 150" role="img" aria-label="Spectrum of the last strike"></svg>
+        </div>
+      </div>
+      <div class="tabctl" data-for="compare" hidden style="flex-direction: column; align-items: stretch;">
+        <p class="cmp-intro">Runs the thesis's partitioned expansion method (Turner 2021, ch. 6) on the same pixel shape: sine basis on the unit box, wall V₀ on the outside pixels, dense M×M eigensolve. Next to it is the new sparse solver (V₀ = ∞). For a rectangle of pixels the exact eigenvalues are known, so the table also shows the error.</p>
+        <div class="toolbar">
+          <label for="cmpN">Sine modes M
+            <select id="cmpN"><option value="12">12² = 144</option><option value="20" selected>20² = 400</option><option value="28">28² = 784</option></select>
+          </label>
+          <label for="cmpV">V₀
+            <select id="cmpV"><option value="2.1e4">2.1×10⁴</option><option value="2.1e5" selected>2.1×10⁵ (paper)</option><option value="2.6e6">2.6×10⁶</option></select>
+          </label>
+          <button id="cmpRun" class="primary" type="button">Run comparison</button>
+          <span class="meta" id="cmpInfo"></span>
+        </div>
+        <div class="tablewrap"><table id="cmpTable"></table></div>
+      </div>
+    </section>
+  </main>
+
+  <section class="panel" aria-labelledby="modes-h">
+    <div class="panel-head"><h2 id="modes-h">Eigenmodes</h2><span class="meta">−Δψ = λψ on Ω′, ψ = 0 on ∂Ω′ · unit box · click to select</span></div>
+    <div class="strip" id="strip"></div>
+  </section>
+
+  <section class="method">
+    <div class="panel">
+      <h3>The thesis method: partitioned expansion</h3>
+      <p>Embed the shape in a box S with a known sine basis φ<sub>n</sub>, and put a wall V₀ on every pixel outside Ω′. Chapter 6 precomputes the pixel integrals once, so changing the shape only re-weights them:</p>
+      <div class="eq">h_nm,jk = ∫_{P_jk} φ_n φ_m dr            (M × M × J × K array)
+H_nm    = λ_n δ_nm + V₀ Σ_{P_jk ⊄ Ω′} h_nm,jk
+eig(H)  → λ_k(Ω′),   V₀ → ∞,  M → ∞</div>
+      <p class="small">Cost: an M²·J·K table, a dense M×M eigensolve, an error of order V₀<sup>−1/2</sup>, and round-off when V₀ is large. The paper settles on V₀ ≈ 10⁵–10⁶ as a trade-off.</p>
+    </div>
+    <div class="panel">
+      <h3>What this app does instead</h3>
+      <ol>
+        <li><b>Factor the table.</b> φ<sub>n</sub>(x,y) = s<sub>n₁</sub>(x)s<sub>n₂</sub>(y), so h<sub>nm,jk</sub> = a<sub>n₁m₁,j</sub>·b<sub>n₂m₂,k</sub>. Two small 1D tables replace the 4D array. The "vs thesis" tab assembles H this way in O(JKN² + KN⁴).</li>
+        <li><b>Take V₀ → ∞ exactly.</b> The eigenvalues rise monotonically in V₀ to the Dirichlet values on Ω′. In that limit the wall simply removes the outside pixels from the problem, so the V₀ error and the round-off trade-off go away.</li>
+        <li><b>Use the pixels as the basis.</b> With M = J·K sine modes, sampling φ<sub>n</sub> on the pixels is a discrete sine transform, and it diagonalizes the box's 5-point Laplacian. Deleting the outside pixels leaves a sparse 5-point Laplacian on Ω′. The boundary sits on the pixel edges (ghost value −u), so Ω′ is exactly the union of pixels from eq. (6.1). Storage is one entry per pixel, and a matrix-vector product costs about 5 flops per pixel.</li>
+        <li><b>Solve only for the low end.</b> A Chebyshev-filtered block subspace iteration finds the lowest K modes. It starts from a half-resolution solve and warm-restarts from the previous modes while you draw, so a stroke typically costs a few iterations.</li>
+      </ol>
+      <p class="small">As Ω′ → Ω in the Hausdorff sense, λ<sub>k</sub>(Ω′) → λ<sub>k</sub>(Ω) (Chenais; thesis §6.1). Wave, heat and drum all use the same operator: u<sub>tt</sub> = Δu (leapfrog), u<sub>t</sub> = Δu (explicit Euler), and the modal sum Σ φ<sub>k</sub>(x₀) φ<sub>k</sub>(x) e<sup>−γ<sub>k</sub>t</sup> cos(2πf<sub>k</sub>t).</p>
+    </div>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script id="worker-src" type="text/plain">
+'use strict';
+const F = Float64Array;
+let cache = null;
+function dot(a, b, n) { let s = 0; for (let i = 0; i < n; i++) s += a[i] * b[i]; return s; }
+function axpy(al, x, y, n) { for (let i = 0; i < n; i++) y[i] += al * x[i]; }
+function randVec(n) { const v = new F(n); for (let i = 0; i < n; i++) v[i] = Math.random() - 0.5; return v; }
+
+// Sparse Dirichlet Laplacian on the pixel set; boundary on pixel edges (ghost = -u), h = 1/G.
+function buildOp(mask, G) {
+  const id = new Int32Array(G * G).fill(-1), cells = [];
+  for (let p = 0; p < G * G; p++) if (mask[p]) { id[p] = cells.length; cells.push(p); }
+  const n = cells.length, nb = new Int32Array(4 * n), dg = new F(n);
+  for (let i = 0; i < n; i++) {
+    const p = cells[i], x = p % G, y = (p / G) | 0;
+    const q0 = x > 0 ? id[p - 1] : -1, q1 = x < G - 1 ? id[p + 1] : -1, q2 = y > 0 ? id[p - G] : -1, q3 = y < G - 1 ? id[p + G] : -1;
+    nb[4 * i] = q0; nb[4 * i + 1] = q1; nb[4 * i + 2] = q2; nb[4 * i + 3] = q3;
+    dg[i] = 4 + (q0 < 0) + (q1 < 0) + (q2 < 0) + (q3 < 0);
+  }
+  return { G, n, cells, id, nb, dg, s: G * G };
+}
+function matvec(op, x, y) {
+  const n = op.n, nb = op.nb, dg = op.dg, s = op.s;
+  for (let i = 0; i < n; i++) {
+    const b = 4 * i; let t = dg[i] * x[i], j;
+    j = nb[b]; if (j >= 0) t -= x[j];
+    j = nb[b + 1]; if (j >= 0) t -= x[j];
+    j = nb[b + 2]; if (j >= 0) t -= x[j];
+    j = nb[b + 3]; if (j >= 0) t -= x[j];
+    y[i] = t * s;
+  }
+}
+function orth(X, n) {
+  for (let j = 0; j < X.length; j++) {
+    for (let tries = 0; ; tries++) {
+      const xj = X[j];
+      const n0 = Math.sqrt(dot(xj, xj, n)) || 1;
+      for (let pass = 0; pass < 2; pass++) for (let i = 0; i < j; i++) axpy(-dot(X[i], xj, n), X[i], xj, n);
+      const nr = Math.sqrt(dot(xj, xj, n));
+      if (nr > 1e-9 * n0 || tries > 4) { const inv = 1 / (nr || 1); for (let k = 0; k < n; k++) xj[k] *= inv; break; }
+      X[j] = randVec(n);
+    }
+  }
+}
+function jacobi(A, m) {
+  const V = new F(m * m); for (let i = 0; i < m; i++) V[i * m + i] = 1;
+  for (let sweep = 0; sweep < 80; sweep++) {
+    let off = 0, tot = 0;
+    for (let p = 0; p < m; p++) for (let q = 0; q < m; q++) { const v = A[p * m + q] * A[p * m + q]; tot += v; if (p !== q) off += v; }
+    if (off <= 1e-28 * tot) break;
+    for (let p = 0; p < m - 1; p++) for (let q = p + 1; q < m; q++) {
+      const apq = A[p * m + q]; if (apq === 0) continue;
+      const th = (A[q * m + q] - A[p * m + p]) / (2 * apq);
+      const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+      const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < m; k++) { const akp = A[k * m + p], akq = A[k * m + q]; A[k * m + p] = c * akp - s * akq; A[k * m + q] = s * akp + c * akq; }
+      for (let k = 0; k < m; k++) { const apk = A[p * m + k], aqk = A[q * m + k]; A[p * m + k] = c * apk - s * aqk; A[q * m + k] = s * apk + c * aqk; }
+      for (let k = 0; k < m; k++) { const vkp = V[k * m + p], vkq = V[k * m + q]; V[k * m + p] = c * vkp - s * vkq; V[k * m + q] = s * vkp + c * vkq; }
+    }
+  }
+  const vals = new F(m); for (let i = 0; i < m; i++) vals[i] = A[i * m + i];
+  return { vals, V };
+}
+function rayleighRitz(op, X) {
+  const m = X.length, n = op.n;
+  const AX = X.map(() => new F(n));
+  for (let j = 0; j < m; j++) matvec(op, X[j], AX[j]);
+  const H = new F(m * m);
+  for (let i = 0; i < m; i++) for (let j = i; j < m; j++) { const v = 0.5 * (dot(X[i], AX[j], n) + dot(X[j], AX[i], n)); H[i * m + j] = v; H[j * m + i] = v; }
+  const { vals, V } = jacobi(H, m);
+  const ord = Array.from({ length: m }, (_, i) => i).sort((a, b) => vals[a] - vals[b]);
+  const NX = [], NA = [];
+  for (const c of ord) {
+    const x = new F(n), y = new F(n);
+    for (let i = 0; i < m; i++) { const w = V[i * m + c]; if (w !== 0) { axpy(w, X[i], x, n); axpy(w, AX[i], y, n); } }
+    NX.push(x); NA.push(y);
+  }
+  return { theta: ord.map(c => vals[c]), X: NX, AX: NA };
+}
+// Scaled Chebyshev filter (Zhou & Saad): damps [a, b], amplifies below a.
+function cheb(op, x, d, a, b, a0) {
+  const n = op.n, e = (b - a) / 2, c = (b + a) / 2;
+  const s1 = e / (a0 - c), tau = 2 / s1; let sg = s1;
+  let xo = x, y = new F(n), t = new F(n);
+  matvec(op, x, y);
+  for (let i = 0; i < n; i++) y[i] = (y[i] - c * x[i]) * s1 / e;
+  for (let k = 2; k <= d; k++) {
+    const s2 = 1 / (tau - sg);
+    matvec(op, y, t);
+    const f = 2 * s2 / e, g = sg * s2;
+    for (let i = 0; i < n; i++) t[i] = (t[i] - c * y[i]) * f - g * xo[i];
+    const old = xo; xo = y; y = t; t = old === x ? new F(n) : old; sg = s2;
+  }
+  return y;
+}
+function solveLevel(op, K, X0, tol, maxIt, deg) {
+  const n = op.n;
+  if (n <= K + 8) { // tiny: exact via full basis
+    const X = []; for (let j = 0; j < n; j++) { const v = new F(n); v[j] = 1; X.push(v); }
+    const r = rayleighRitz(op, X); return { theta: r.theta, X: r.X, it: 1 };
+  }
+  const m = Math.min(K + 6, n);
+  let X = [];
+  for (let j = 0; j < m; j++) X.push(X0 && X0[j] ? X0[j] : randVec(n));
+  orth(X, n);
+  const b = 8 * op.s * 1.0001;
+  let r, it;
+  for (it = 0; it < maxIt; it++) {
+    r = rayleighRitz(op, X); X = r.X;
+    let worst = 0;
+    for (let j = 0; j < K; j++) {
+      const ax = r.AX[j], x = X[j], th = r.theta[j]; let s = 0;
+      for (let i = 0; i < n; i++) { const z = ax[i] - th * x[i]; s += z * z; }
+      worst = Math.max(worst, Math.sqrt(s) / Math.max(Math.abs(th), 1e-12));
+    }
+    if (worst < tol) break;
+    const a = r.theta[m - 1], a0 = r.theta[0];
+    for (let j = 0; j < m; j++) X[j] = cheb(op, X[j], deg, a, b, Math.min(a0, 0.5 * a));
+    orth(X, n);
+  }
+  return { theta: r.theta, X, it: it + 1 };
+}
+function coarsen(mask, G) {
+  const g = G >> 1, mc = new Uint8Array(g * g);
+  for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) {
+    const p = 2 * y * G + 2 * x;
+    mc[y * g + x] = (mask[p] + mask[p + 1] + mask[p + G] + mask[p + G + 1]) >= 2 ? 1 : 0;
+  }
+  return mc;
+}
+function initial(mask, G, op, K) {
+  if (G < 40) return null;
+  const g = G >> 1, mc = coarsen(mask, G), opc = buildOp(mc, g);
+  if (opc.n < K + 12) return null;
+  const Xc0 = initial(mc, g, opc, K);
+  const rc = solveLevel(opc, K, Xc0, 3e-3, 300, 14);
+  return rc.X.map(xc => {
+    const x = new F(op.n);
+    for (let i = 0; i < op.n; i++) {
+      const p = op.cells[i], px = p % G, py = (p / G) | 0;
+      const ic = opc.id[Math.min(g - 1, py >> 1) * g + Math.min(g - 1, px >> 1)];
+      x[i] = ic >= 0 ? xc[ic] : 0;
+    }
+    return x;
+  });
+}
+function solve(mask, G, K, warm, tol) {
+  const t0 = performance.now();
+  const op = buildOp(mask, G), n = op.n;
+  if (n < 4) { cache = null; return { n, K: 0, vals: new F(0), vecs: new Float32Array(0), ms: 0, it: 0 }; }
+  let X0 = null, start = 'coarse';
+  if (warm && cache && cache.G === G) {
+    X0 = cache.vecs.map(v => { const x = new F(n); for (let i = 0; i < n; i++) x[i] = v[op.cells[i]]; return x; });
+    start = 'warm';
+  } else X0 = initial(mask, G, op, K);
+  const r = solveLevel(op, K, X0, tol || 2e-4, 400, 20);
+  let Kout = Math.min(K, r.theta.length);
+  // never cut a degenerate cluster in half (keeps symmetric shapes symmetric)
+  while (Kout > 1 && Kout < r.theta.length && Math.abs(r.theta[Kout] - r.theta[Kout - 1]) <= 1e-3 * r.theta[Kout - 1]) Kout--;
+  const vecs = new Float32Array(Kout * G * G);
+  const full = [];
+  for (let k = 0; k < r.X.length; k++) {
+    const x = r.X[k], v = new F(G * G);
+    for (let i = 0; i < n; i++) v[op.cells[i]] = x[i];
+    full.push(v);
+  }
+  for (let k = 0; k < Kout; k++) {
+    const x = r.X[k]; let big = 0;
+    for (let i = 0; i < n; i++) if (Math.abs(x[i]) > Math.abs(big)) big = x[i];
+    const sgn = big < 0 ? -G : G; // normalise: integral of psi^2 over unit box = 1
+    for (let i = 0; i < n; i++) vecs[k * G * G + op.cells[i]] = x[i] * sgn;
+  }
+  cache = { G, vecs: full };
+  return { n, K: Kout, vals: F.from(r.theta.slice(0, Kout)), vecs, ms: performance.now() - t0, it: r.it, start };
+}
+
+// ---- Thesis partitioned expansion method (separable assembly) ----
+function tridiag(a, n) {
+  const d = new F(n), e = new F(n);
+  for (let i = n - 1; i > 0; i--) {
+    const l = i - 1; let h = 0, scale = 0; const ai = a[i];
+    if (l > 0) {
+      for (let k = 0; k <= l; k++) scale += Math.abs(ai[k]);
+      if (scale === 0) e[i] = ai[l];
+      else {
+        for (let k = 0; k <= l; k++) { ai[k] /= scale; h += ai[k] * ai[k]; }
+        let f = ai[l]; let g = f >= 0 ? -Math.sqrt(h) : Math.sqrt(h);
+        e[i] = scale * g; h -= f * g; ai[l] = f - g; f = 0;
+        for (let j = 0; j <= l; j++) {
+          g = 0; const aj = a[j];
+          for (let k = 0; k <= j; k++) g += aj[k] * ai[k];
+          for (let k = j + 1; k <= l; k++) g += a[k][j] * ai[k];
+          e[j] = g / h; f += e[j] * ai[j];
+        }
+        const hh = f / (h + h);
+        for (let j = 0; j <= l; j++) {
+          f = ai[j]; e[j] = g = e[j] - hh * f; const aj = a[j];
+          for (let k = 0; k <= j; k++) aj[k] -= (f * e[k] + g * ai[k]);
+        }
+      }
+    } else e[i] = ai[l];
+    d[i] = h;
+  }
+  for (let i = 0; i < n; i++) d[i] = a[i][i];
+  return { d, e };
+}
+function tqli(d, e, n) {
+  for (let i = 1; i < n; i++) e[i - 1] = e[i];
+  e[n - 1] = 0;
+  for (let l = 0; l < n; l++) {
+    let iter = 0, m;
+    do {
+      for (m = l; m < n - 1; m++) { const dd = Math.abs(d[m]) + Math.abs(d[m + 1]); if (Math.abs(e[m]) <= 1e-15 * dd) break; }
+      if (m !== l) {
+        if (iter++ === 60) break;
+        let g = (d[l + 1] - d[l]) / (2 * e[l]);
+        let r = Math.hypot(g, 1);
+        g = d[m] - d[l] + e[l] / (g + (g >= 0 ? r : -r));
+        let s = 1, c = 1, p = 0, i;
+        for (i = m - 1; i >= l; i--) {
+          let f = s * e[i]; const b = c * e[i];
+          e[i + 1] = (r = Math.hypot(f, g));
+          if (r === 0) { d[i + 1] -= p; e[m] = 0; break; }
+          s = f / r; c = g / r; g = d[i + 1] - p; r = (d[i] - g) * s + 2 * c * b; d[i + 1] = g + (p = s * r); g = c * r - b;
+        }
+        if (r === 0 && i >= l) continue;
+        d[l] -= p; e[l] = g; e[m] = 0;
+      }
+    } while (m !== l);
+  }
+  return d;
+}
+function thesis(mask, G, N, V0, K) {
+  const t0 = performance.now();
+  // 1D pixel tables: I[j][n][m] = int_{j/G}^{(j+1)/G} 2 sin(n pi x) sin(m pi x) dx, n,m = 1..N
+  const Fp = (k, x) => k === 0 ? x : Math.sin(k * Math.PI * x) / (k * Math.PI);
+  const I = new F(G * N * N);
+  for (let j = 0; j < G; j++) {
+    const x0 = j / G, x1 = (j + 1) / G;
+    for (let a = 0; a < N; a++) for (let b = 0; b < N; b++) {
+      const n = a + 1, m = b + 1, dk = Math.abs(n - m), sk = n + m;
+      I[(j * N + a) * N + b] = (Fp(dk, x1) - Fp(dk, x0)) - (Fp(sk, x1) - Fp(sk, x0));
+    }
+  }
+  // C[y][a][b] = sum_x chi(x,y) I[x][a][b]  (chi = 1 on outside pixels)
+  const C = new F(G * N * N);
+  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
+    if (mask[y * G + x]) continue;
+    const off = y * N * N, src = x * N * N;
+    for (let q = 0; q < N * N; q++) C[off + q] += I[src + q];
+  }
+  const M = N * N, H = [];
+  for (let r = 0; r < M; r++) H.push(new F(M));
+  // H[(a1,a2),(b1,b2)] = V0 * sum_y C[y][a1][b1] * I[y][a2][b2] ; index = a1*N + a2
+  for (let y = 0; y < G; y++) {
+    const cy = y * N * N;
+    for (let a1 = 0; a1 < N; a1++) for (let b1 = 0; b1 < N; b1++) {
+      const c = C[cy + a1 * N + b1]; if (c === 0) continue;
+      const w = V0 * c;
+      for (let a2 = 0; a2 < N; a2++) {
+        const row = H[a1 * N + a2], iy = cy + a2 * N;
+        for (let b2 = 0; b2 < N; b2++) row[b1 * N + b2] += w * I[iy + b2];
+      }
+    }
+  }
+  for (let a1 = 0; a1 < N; a1++) for (let a2 = 0; a2 < N; a2++) H[a1 * N + a2][a1 * N + a2] += Math.PI * Math.PI * ((a1 + 1) ** 2 + (a2 + 1) ** 2);
+  const tAsm = performance.now() - t0;
+  const { d, e } = tridiag(H, M);
+  tqli(d, e, M);
+  const vals = Array.from(d).sort((a, b) => a - b).slice(0, K);
+  return { vals, M, ms: performance.now() - t0, tAsm };
+}
+
+self.onmessage = (ev) => {
+  const m = ev.data;
+  if (m.type === 'eig') {
+    const r = solve(m.mask, m.G, m.K, m.warm, m.tol);
+    self.postMessage({ type: 'eig', id: m.id, G: m.G, ...r }, [r.vecs.buffer]);
+  } else if (m.type === 'thesis') {
+    const r = thesis(m.mask, m.G, m.N, m.V0, m.K);
+    self.postMessage({ type: 'thesis', ...r });
+  }
+};
+</script>
+
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const worker = new Worker(URL.createObjectURL(new Blob([$('worker-src').textContent], { type: 'text/javascript' })));
+
+// ---------- state ----------
+let G = 64, K = 20;
+let mask = new Uint8Array(G * G);
+let vals = new Float64Array(0), vecs = new Float32Array(0), nModes = 0, resG = G;
+let selected = 0, tab = 'modes', tool = 'draw';
+let reqId = 0, reqDone = 0, busy = false, pending = false, lastMs = 0;
+let simNb = null, simDg = null;
+let wu, wp, hu, heatSteps = 0, waveScale = 0.02;
+let drum = null; // {amps, t0}
+let modesDirty = true;
+
+// ---------- colors ----------
+let C = {};
+function hex(s) { s = s.trim(); if (s.startsWith('rgb')) { const m = s.match(/[\d.]+/g).map(Number); return [m[0], m[1], m[2], m[3] ?? 1]; } const v = s.replace('#', ''); return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16), 1]; }
+function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+function readColors() {
+  const cs = getComputedStyle(document.documentElement), g = (n) => hex(cs.getPropertyValue(n));
+  C = { void: g('--void'), cell: g('--cell'), panel: g('--panel'), ink: g('--ink'), grid: cs.getPropertyValue('--gridline').trim(), accent: cs.getPropertyValue('--accent').trim(), inkS: cs.getPropertyValue('--ink').trim(), mutedS: cs.getPropertyValue('--muted').trim(), lineS: cs.getPropertyValue('--line').trim() };
+  const nx = g('--div-neg-x'), ng = g('--div-neg'), md = g('--div-mid'), ps = g('--div-pos'), px = g('--div-pos-x');
+  const s0 = g('--seq-0'), s1 = g('--seq-1'), s2 = g('--seq-2');
+  C.div = new Uint8ClampedArray(256 * 3); C.seq = new Uint8ClampedArray(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255 * 2 - 1, a = Math.abs(t);
+    const pole = t < 0 ? ng : ps, ext = t < 0 ? nx : px;
+    const c = a < 0.6 ? mix(md, pole, a / 0.6) : mix(pole, ext, (a - 0.6) / 0.4);
+    C.div.set(c.map(Math.round), i * 3);
+    const u = i / 255, q = u < 0.55 ? mix(s0, s1, u / 0.55) : mix(s1, s2, (u - 0.55) / 0.45);
+    C.seq.set(q.map(Math.round), i * 3);
+  }
+  modesDirty = true; drawEditor(); drawStrip();
+}
+
+// ---------- presets ----------
+const presets = {
+  L: (x, y) => Math.abs(x) < 0.9 && Math.abs(y) < 0.9 && !(x > 0 && y < 0),
+  square: (x, y) => Math.abs(x) < 0.8 && Math.abs(y) < 0.8,
+  rect: (x, y) => Math.abs(x) < 0.9 && Math.abs(y) < 0.45,
+  disk: (x, y) => x * x + y * y < 0.85 * 0.85,
+  annulus: (x, y) => { const r = Math.hypot(x, y); return r < 0.9 && r > 0.42; },
+  tri: (x, y) => y < 0.68 && Math.sqrt(3) * Math.abs(x) - y < 0.85,
+  snake: (x, y) => Math.abs(x) < 0.88 && Math.abs(y - 0.55 * Math.sin(Math.PI * 1.25 * x)) < 0.16,
+  star: (x, y) => { const r = Math.hypot(x, y), t = Math.atan2(y, x) + Math.PI / 2; return r < 0.56 + 0.32 * Math.cos(5 * t); },
+  heart: (x, y) => { const X = x * 1.2, Y = -y * 1.2 + 0.2; const a = X * X + Y * Y - 1; return a * a * a - X * X * Y * Y * Y < 0; },
+  dumbbell: (x, y) => Math.hypot(x - 0.5, y) < 0.4 || Math.hypot(x + 0.5, y) < 0.4 || (Math.abs(y) < 0.09 && Math.abs(x) < 0.5),
+};
+function applyPreset(name) {
+  const f = presets[name]; mask = new Uint8Array(G * G);
+  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) mask[y * G + x] = f((x + 0.5) / G * 2 - 1, (y + 0.5) / G * 2 - 1) ? 1 : 0;
+  shapeChanged(false);
+}
+
+// ---------- editor ----------
+const ed = $('editor'), ectx = ed.getContext('2d');
+function fitCanvas(c) { const r = c.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2); const w = Math.max(1, Math.round(r.width * d)); if (c.width !== w) { c.width = w; c.height = w; } return w; }
+function drawEditor() {
+  if (!C.void) return;
+  const w = fitCanvas(ed), cs = w / G;
+  ectx.fillStyle = `rgb(${C.void.slice(0, 3)})`; ectx.fillRect(0, 0, w, w);
+  ectx.fillStyle = `rgb(${C.cell.slice(0, 3)})`;
+  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) if (mask[y * G + x]) ectx.fillRect(Math.floor(x * cs), Math.floor(y * cs), Math.ceil(cs), Math.ceil(cs));
+  if (cs >= 5) {
+    ectx.strokeStyle = C.grid; ectx.lineWidth = 1; ectx.beginPath();
+    for (let i = 1; i < G; i++) { const p = Math.round(i * cs) + 0.5; ectx.moveTo(p, 0); ectx.lineTo(p, w); ectx.moveTo(0, p); ectx.lineTo(w, p); }
+    ectx.stroke();
+  }
+  const n = mask.reduce((a, b) => a + b, 0);
+  $('shapeMeta').textContent = `${n.toLocaleString()} px · h = 1/${G}`;
+}
+let painting = false, last = null, eraseNow = false;
+function cellAt(c, e) { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * G, (e.clientY - r.top) / r.height * G]; }
+function paintAt(cx, cy) {
+  const r = parseFloat($('brush').value), v = (tool === 'erase') !== eraseNow ? 0 : 1;
+  const x0 = Math.floor(cx - r), x1 = Math.floor(cx + r), y0 = Math.floor(cy - r), y1 = Math.floor(cy + r);
+  let changed = false;
+  for (let y = Math.max(0, y0); y <= Math.min(G - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(G - 1, x1); x++) {
+    const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+    if (r < 1 ? (x === Math.floor(cx) && y === Math.floor(cy)) : dx * dx + dy * dy <= r * r) { if (mask[y * G + x] !== v) { mask[y * G + x] = v; changed = true; } }
+  }
+  return changed;
+}
+function stroke(e) {
+  const p = cellAt(ed, e); let changed = false;
+  if (last) { const d = Math.hypot(p[0] - last[0], p[1] - last[1]), st = Math.max(1, Math.ceil(d / 0.5)); for (let i = 1; i <= st; i++) changed = paintAt(last[0] + (p[0] - last[0]) * i / st, last[1] + (p[1] - last[1]) * i / st) || changed; }
+  else changed = paintAt(p[0], p[1]);
+  last = p; if (changed) shapeChanged(true);
+}
+ed.addEventListener('contextmenu', (e) => e.preventDefault());
+ed.addEventListener('pointerdown', (e) => { painting = true; last = null; eraseNow = e.shiftKey || e.button === 2; ed.setPointerCapture(e.pointerId); stroke(e); });
+ed.addEventListener('pointermove', (e) => { if (painting) stroke(e); });
+const endPaint = () => { if (painting) { painting = false; last = null; requestSolve(true); } };
+ed.addEventListener('pointerup', endPaint); ed.addEventListener('pointercancel', endPaint);
+
+function shapeChanged(warm) {
+  drawEditor(); buildSim(); requestSolve(warm);
+}
+
+// ---------- solver plumbing ----------
+let solveTimer = 0;
+function requestSolve(warm) {
+  clearTimeout(solveTimer);
+  solveTimer = setTimeout(() => {
+    if (busy) { pending = true; return; }
+    busy = true; $('status').classList.add('busy');
+    worker.postMessage({ type: 'eig', id: ++reqId, G, K, mask: mask.slice(), warm, tol: painting ? 2e-3 : 2e-4 });
+  }, painting ? 30 : 0);
+}
+worker.onmessage = (ev) => {
+  const m = ev.data;
+  if (m.type === 'eig') {
+    busy = false; $('status').classList.remove('busy');
+    if (m.G === G) {
+      vals = m.vals; vecs = m.vecs; nModes = m.K; resG = m.G; lastMs = m.ms; means = null; reqDone++; drum = null; lastParts = null;
+      if (selected >= nModes) selected = 0;
+      $('statusText').textContent = nModes ? `${m.n.toLocaleString()} px · ${nModes} modes · ${m.ms.toFixed(0)} ms · ${m.it} it (${m.start})` : 'draw a shape';
+      modesDirty = true; drawStrip();
+      if (tab === 'compare') renderCompare();
+    }
+    if (pending) { pending = false; requestSolve(true); }
+  } else if (m.type === 'thesis') {
+    thesisResult = Object.assign(m, thesisMeta); renderCompare(); $('cmpRun').disabled = false;
+  }
+};
+
+// ---------- field rendering ----------
+const view = $('view'), vctx = view.getContext('2d');
+let off = document.createElement('canvas'), octx = off.getContext('2d'), img = null;
+function ensureOff() { if (off.width !== G) { off.width = G; off.height = G; img = null; } if (!img) img = octx.createImageData(G, G); }
+function paintField(field, scale, lut, signed, ctx, canvas, offset = 0) {
+  ensureOff();
+  const d = img.data, vd = C.void;
+  for (let p = 0; p < G * G; p++) {
+    const q = 4 * p;
+    if (!mask[p]) { d[q] = vd[0]; d[q + 1] = vd[1]; d[q + 2] = vd[2]; d[q + 3] = 255; continue; }
+    let t = field[offset + p] / scale;
+    let idx = signed ? Math.round((Math.max(-1, Math.min(1, t)) + 1) * 127.5) : Math.round(Math.max(0, Math.min(1, t)) * 255);
+    d[q] = lut[idx * 3]; d[q + 1] = lut[idx * 3 + 1]; d[q + 2] = lut[idx * 3 + 2]; d[q + 3] = 255;
+  }
+  octx.putImageData(img, 0, 0);
+  const w = canvas.width; ctx.imageSmoothingEnabled = false; ctx.drawImage(off, 0, 0, w, w);
+}
+function maxAbs(field, offset = 0) { let m = 0; for (let p = 0; p < G * G; p++) { const v = Math.abs(field[offset + p]); if (v > m) m = v; } return m; }
+function drawNodal(ctx, w, offset) {
+  const cs = w / G; ctx.strokeStyle = C.inkS; ctx.globalAlpha = 0.75; ctx.lineWidth = Math.max(1, cs * 0.18); ctx.beginPath();
+  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
+    const p = y * G + x; if (!mask[p]) continue; const a = vecs[offset + p];
+    if (x < G - 1 && mask[p + 1] && a * vecs[offset + p + 1] < 0) { const X = (x + 1) * cs; ctx.moveTo(X, y * cs); ctx.lineTo(X, (y + 1) * cs); }
+    if (y < G - 1 && mask[p + G] && a * vecs[offset + p + G] < 0) { const Y = (y + 1) * cs; ctx.moveTo(x * cs, Y); ctx.lineTo((x + 1) * cs, Y); }
+  }
+  ctx.stroke(); ctx.globalAlpha = 1;
+}
+function blank(ctx, canvas, msg) { ctx.fillStyle = `rgb(${C.void.slice(0, 3)})`; ctx.fillRect(0, 0, canvas.width, canvas.width); $('overlay').textContent = msg || ''; }
+function renderModes() {
+  const w = fitCanvas(view);
+  if (!nModes || resG !== G) { blank(vctx, view, nModes ? '' : 'draw a shape to see its modes'); return; }
+  const o = selected * G * G;
+  paintField(vecs, maxAbs(vecs, o), C.div, true, vctx, view, o);
+  if ($('nodal').checked) drawNodal(vctx, w, o);
+  $('overlay').textContent = `ψ${sub(selected + 1)}  λ = ${vals[selected].toFixed(2)}`;
+}
+const subs = '₀₁₂₃₄₅₆₇₈₉';
+function sub(n) { return String(n).split('').map(c => subs[+c]).join(''); }
+
+// ---------- strip ----------
+function drawStrip() {
+  const strip = $('strip');
+  if (!C.void) return;
+  if (strip.children.length !== nModes) {
+    strip.innerHTML = '';
+    for (let k = 0; k < nModes; k++) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'mode'; b.id = 'mode-' + k;
+      b.innerHTML = `<canvas width="${G}" height="${G}"></canvas><span><b>ψ${sub(k + 1)}</b><em></em></span>`;
+      b.addEventListener('click', () => selectMode(k));
+      strip.appendChild(b);
+    }
+  }
+  for (let k = 0; k < nModes; k++) {
+    const b = strip.children[k], c = b.querySelector('canvas');
+    if (c.width !== G) { c.width = G; c.height = G; }
+    const cx = c.getContext('2d'); const o = k * G * G;
+    paintField(vecs, maxAbs(vecs, o), C.div, true, cx, c, o);
+    b.querySelector('em').textContent = vals[k].toFixed(1);
+    b.querySelector('em').style.fontStyle = 'normal';
+    b.classList.toggle('sel', k === selected);
+    b.setAttribute('aria-label', `Mode ${k + 1}, lambda ${vals[k].toFixed(2)}`);
+  }
+}
+function selectMode(k) {
+  selected = k; modesDirty = true;
+  [...$('strip').children].forEach((b, i) => b.classList.toggle('sel', i === k));
+  if (tab === 'modes' && $('tones').checked && nModes) playTone(freqOf(k));
+}
+
+// ---------- simulations ----------
+function buildSim() {
+  simNb = new Int32Array(4 * G * G).fill(-1); simDg = new Float32Array(G * G);
+  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
+    const p = y * G + x; if (!mask[p]) continue;
+    const q = [x > 0 ? p - 1 : -1, x < G - 1 ? p + 1 : -1, y > 0 ? p - G : -1, y < G - 1 ? p + G : -1];
+    let out = 0; for (let k = 0; k < 4; k++) { if (q[k] >= 0 && mask[q[k]]) simNb[4 * p + k] = q[k]; else out++; }
+    simDg[p] = 4 + out;
+  }
+  if (!wu || wu.length !== G * G) { wu = new Float32Array(G * G); wp = new Float32Array(G * G); hu = new Float32Array(G * G); }
+  for (let p = 0; p < G * G; p++) if (!mask[p]) { wu[p] = 0; wp[p] = 0; hu[p] = 0; }
+}
+function lap(u, p) { const b = 4 * p; let s = -simDg[p] * u[p], j; j = simNb[b]; if (j >= 0) s += u[j]; j = simNb[b + 1]; if (j >= 0) s += u[j]; j = simNb[b + 2]; if (j >= 0) s += u[j]; j = simNb[b + 3]; if (j >= 0) s += u[j]; return s; }
+let wn = null, wd = null;
+function waveStep(sub) {
+  if (!wn || wn.length !== G * G) wn = new Float32Array(G * G);
+  // u_tt + 2 g0 u_t - 2 eta Lap u_t = Lap u, unit wave speed, h = 1/G, dt = sqrt(C) h
+  const Cc = 0.45, h = 1 / G, dt = Math.sqrt(Cc) * h, om1 = nModes ? Math.sqrt(vals[0]) : 2 * Math.PI;
+  const { z0, z1 } = damping(), g0 = z0 * om1, eta = nModes ? z1 * om1 / vals[0] : 0;
+  const a0 = 2 * g0 * dt, a1 = Math.min(2 * eta * dt / (h * h), 0.06); // viscous term capped for explicit stability
+  if (!wd || wd.length !== G * G) wd = new Float32Array(G * G);
+  for (let s = 0; s < sub; s++) {
+    for (let p = 0; p < G * G; p++) wd[p] = wu[p] - wp[p];
+    for (let p = 0; p < G * G; p++) { if (!mask[p]) { wn[p] = 0; continue; } wn[p] = 2 * wu[p] - wp[p] + Cc * lap(wu, p) - a0 * wd[p] + a1 * lap(wd, p); }
+    const t = wp; wp = wu; wu = wn; wn = t;
+  }
+}
+function heatStep(sub) {
+  const tmp = wn && wn.length === G * G ? wn : (wn = new Float32Array(G * G));
+  for (let s = 0; s < sub; s++) {
+    for (let p = 0; p < G * G; p++) tmp[p] = mask[p] ? hu[p] + 0.22 * lap(hu, p) : 0;
+    hu.set(tmp);
+  }
+  heatSteps += sub;
+}
+function bump(field, cx, cy, r, amp, mode) {
+  for (let y = Math.max(0, Math.floor(cy - 3 * r)); y <= Math.min(G - 1, Math.ceil(cy + 3 * r)); y++)
+    for (let x = Math.max(0, Math.floor(cx - 3 * r)); x <= Math.min(G - 1, Math.ceil(cx + 3 * r)); x++) {
+      const p = y * G + x; if (!mask[p]) continue;
+      const g = amp * Math.exp(-((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) / (2 * r * r));
+      if (mode === 'max') field[p] = Math.max(field[p], g); else field[p] += g;
+    }
+}
+let viewDown = false;
+view.addEventListener('pointerdown', (e) => {
+  view.setPointerCapture(e.pointerId); viewDown = true;
+  const [cx, cy] = cellAt(view, e);
+  if (tab === 'wave') { bump(wp, cx, cy, Math.max(1, G / 48), -0.6, 'add'); if ($('waveSound').checked) strike(cx, cy, false); }
+  else if (tab === 'heat') bump(hu, cx, cy, Math.max(1.2, G / 40), 1, 'max');
+  else if (tab === 'drum') strike(cx, cy, true);
+});
+view.addEventListener('pointermove', (e) => { if (viewDown && tab === 'heat') { const [cx, cy] = cellAt(view, e); bump(hu, cx, cy, Math.max(1.2, G / 40), 1, 'max'); } });
+view.addEventListener('pointerup', () => { viewDown = false; });
+$('waveMode').onclick = () => { if (!nModes) return; const o = selected * G * G, s = 1 / maxAbs(vecs, o); for (let p = 0; p < G * G; p++) { wu[p] = vecs[o + p] * s; wp[p] = wu[p]; } waveScale = 1; };
+$('waveReset').onclick = () => { wu.fill(0); wp.fill(0); };
+$('heatMode').onclick = () => { if (!nModes) return; const o = selected * G * G, s = 1 / maxAbs(vecs, o); for (let p = 0; p < G * G; p++) hu[p] = Math.max(0, vecs[o + p] * s); heatSteps = 0; };
+$('heatReset').onclick = () => { hu.fill(0); heatSteps = 0; };
+
+// ---------- audio ----------
+let actx = null;
+function audio() { if (!actx) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; actx = new A(); } if (actx.state === 'suspended') actx.resume(); return actx; }
+function freqOf(k) { return +$('f0').value * Math.sqrt(vals[k] / vals[0]); }
+function damping() { return { z0: +$('z0').value * 0.0005, z1: +$('z1').value * 0.00008 }; }
+// ==== MODAL SYNTH (pure functions) ====
+function clusterModes(vals, n) {
+  const cl = []; let cur = [0];
+  for (let k = 1; k < n; k++) { if (Math.abs(vals[k] - vals[cur[0]]) <= 1e-4 * vals[cur[0]]) cur.push(k); else { cl.push(cur); cur = [k]; } }
+  if (n) cl.push(cur); return cl;
+}
+// Gaussian hammer centred on pixel (sx, sy), restricted to the shape, normalised so that its integral is 1.
+function strikeProfile(G, mask, sx, sy, sigma) {
+  const pts = [], R = Math.ceil(3 * sigma); let tot = 0;
+  for (let y = Math.max(0, sy - R); y <= Math.min(G - 1, sy + R); y++) for (let x = Math.max(0, sx - R); x <= Math.min(G - 1, sx + R); x++) {
+    const p = y * G + x; if (!mask[p]) continue;
+    const g = Math.exp(-((x - sx) ** 2 + (y - sy) ** 2) / (2 * sigma * sigma)); pts.push(p, g); tot += g;
+  }
+  const sc = G * G / (tot || 1); for (let i = 1; i < pts.length; i += 2) pts[i] *= sc;
+  return pts;
+}
+function modeMeans(vecs, nModes, G) { const N = G * G, m = new Float64Array(nModes); for (let k = 0; k < nModes; k++) { let s = 0; const o = k * N; for (let p = 0; p < N; p++) s += vecs[o + p]; m[k] = s / N; } return m; }
+// Exact modal solution of u_tt + 2*gamma_k u_t + omega_k^2 u = 0 per mode, struck by a velocity impulse g:
+//   c_k = <g, phi_k>,  u(x,t) = sum_k c_k e^{-gamma_k t} sin(omega'_k t)/omega'_k phi_k(x)
+// Listener: 'far'     -> radiated pressure ~ volume acceleration  d^2/dt^2 \int u = sum c_k m_k u_k''
+//           'contact' -> displacement under the hammer <g, u>     = sum c_k^2 u_k
+// Degenerate modes are summed before synthesis, so the result does not depend on the eigenbasis.
+function modalParts(o) {
+  const { vals, vecs, nModes, G, listener, means } = o, N = G * G;
+  const prof = strikeProfile(G, o.mask, o.sx, o.sy, o.sigma);
+  const c = new Float64Array(nModes);
+  for (let k = 0; k < nModes; k++) { const off = k * N; let s = 0; for (let i = 0; i < prof.length; i += 2) s += prof[i + 1] * vecs[off + prof[i]]; c[k] = s / N; }
+  const w1 = 2 * Math.PI * o.f1, parts = [], modal = [];
+  for (const cl of clusterModes(vals, nModes)) {
+    let A = 0; for (const k of cl) A += c[k] * (listener === 'far' ? means[k] : c[k]);
+    const lam = vals[cl[0]], om = w1 * Math.sqrt(lam / vals[0]), gam = w1 * (o.z0 + o.z1 * lam / vals[0]);
+    const omd = Math.sqrt(Math.max(om * om - gam * gam, 1e-12));
+    for (const k of cl) modal.push({ k, c: c[k], gam, omd });
+    const as = listener === 'far' ? A * (gam * gam - omd * omd) / omd : A / omd;
+    const ac = listener === 'far' ? -2 * gam * A : 0;
+    parts.push({ modes: cl, lam, f: omd / (2 * Math.PI), g: gam, as, ac });
+  }
+  return { parts, modal };
+}
+function synthesize(parts, sr, dur, gain) {
+  const N = Math.floor(sr * dur), d = new Float32Array(N);
+  for (const { f, g, as, ac } of parts) {
+    if (f >= sr / 2 - 100) continue;
+    const amp = Math.abs(as) + Math.abs(ac); if (amp * gain < 1e-6) continue;
+    const th = 2 * Math.PI * f / sr, dec = Math.exp(-g / sr), zr = dec * Math.cos(th), zi = dec * Math.sin(th);
+    let re = 1, im = 0;
+    for (let i = 0; i < N; i++) {
+      d[i] += gain * (as * im + ac * re);
+      const r2 = re * zr - im * zi; im = re * zi + im * zr; re = r2;
+      if ((i & 1023) === 0 && (Math.abs(re) + Math.abs(im)) * amp * gain < 1e-6) break;
+    }
+  }
+  return d;
+}
+// ==== END MODAL SYNTH ====
+let means = null, gainCache = { key: '', gain: 1 };
+function synthGain(base) {
+  // One loudness scale per shape and setting: louder spots stay louder, mirrored spots match.
+  const key = [reqDone, base.listener, base.f1, base.z0, base.z1].join('|');
+  if (gainCache.key === key) return gainCache.gain;
+  let worst = 0; const step = Math.max(1, Math.floor(G / 16));
+  for (let y = 0; y < G; y += step) for (let x = 0; x < G; x += step) {
+    if (!mask[y * G + x]) continue;
+    const { parts } = modalParts({ ...base, sx: x, sy: y });
+    let b = 0; for (const q of parts) b += Math.abs(q.as) + Math.abs(q.ac);
+    worst = Math.max(worst, b);
+  }
+  gainCache = { key, gain: worst > 0 ? 0.6 / worst : 0 };
+  return gainCache.gain;
+}
+function playBuffer(d, sr) {
+  const ctx = audio(); if (!ctx) return;
+  const atk = Math.floor(sr * 0.0007); for (let i = 0; i < atk && i < d.length; i++) d[i] *= i / atk;
+  for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > 0.9) d[i] = Math.sign(d[i]) * (0.9 + 0.1 * Math.tanh((Math.abs(d[i]) - 0.9) / 0.1));
+  const buf = ctx.createBuffer(1, d.length, sr); buf.getChannelData(0).set(d);
+  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination); src.start();
+}
+function playTone(f) { const ctx = audio(); if (!ctx) return; playBuffer(synthesize([{ f, g: 2.5, as: 1, ac: 0 }], ctx.sampleRate, 1.2, 0.5), ctx.sampleRate); }
+function strike(cx, cy, animate) {
+  if (!nModes || resG !== G) return;
+  const sx = Math.min(G - 1, Math.max(0, Math.floor(cx))), sy = Math.min(G - 1, Math.max(0, Math.floor(cy)));
+  if (!mask[sy * G + sx]) return;
+  if (!means) means = modeMeans(vecs, nModes, G);
+  const { z0, z1 } = damping();
+  const base = { vals, vecs, nModes, G, mask, means, sigma: Math.max(1, G / 48), listener: $('listener').value, f1: +$('f0').value, z0, z1 };
+  const { parts, modal } = modalParts({ ...base, sx, sy });
+  const ctx = audio();
+  if (ctx) playBuffer(synthesize(parts, ctx.sampleRate, 4, synthGain(base)), ctx.sampleRate);
+  if (animate) { drum = { modal, t0: performance.now(), sx, sy, f1: base.f1 }; lastParts = parts; drawSpectrum(parts); }
+}
+let lastParts = null;
+$('f0').addEventListener('input', () => { $('f0out').textContent = `${$('f0').value} Hz`; });
+
+// ---------- spectrum chart ----------
+const tip = $('tip');
+function drawSpectrum(parts) {
+  const svg = $('spectrum'), W = 600, H = 150, L = 8, R = 8, T = 10, B = 24;
+  if (!parts || !parts.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">Click the drum to see its spectrum</text>`; return; }
+  const f1 = parts[0].f, fmax = parts[parts.length - 1].f * 1.06, sx = (f) => L + (f / fmax) * (W - L - R);
+  const mag = parts.map((q) => Math.hypot(q.as, q.ac)), am = Math.max(...mag) || 1, base = H - B;
+  let s = '';
+  for (let n = 1; n * f1 < fmax; n++) s += `<line x1="${sx(n * f1)}" x2="${sx(n * f1)}" y1="${T}" y2="${base}" stroke="${C.mutedS}" stroke-opacity="0.45" stroke-dasharray="3 4" stroke-width="1"/>`;
+  s += `<line x1="${L}" x2="${W - R}" y1="${base}" y2="${base}" stroke="${C.lineS}" stroke-width="1"/>`;
+  const step = fmax > 3000 ? 1000 : fmax > 1500 ? 500 : fmax > 600 ? 200 : 100;
+  for (let f = 0; f < fmax; f += step) s += `<text x="${sx(f)}" y="${H - 8}" text-anchor="${f === 0 ? 'start' : 'middle'}">${f}${f === 0 ? ' Hz' : ''}</text>`;
+  parts.forEach((q, i) => {
+    const hgt = mag[i] / am * (base - T), x = sx(q.f);
+    if (hgt > 0.5) s += `<rect x="${x - 1.5}" y="${base - hgt}" width="3" height="${hgt}" rx="1.5" fill="${C.accent}"/>`;
+    if (q.modes.length > 1 && hgt > 12) s += `<text x="${x}" y="${base - hgt - 3}" text-anchor="middle">×${q.modes.length}</text>`;
+    s += `<rect class="hit" data-i="${i}" x="${x - 6}" y="${T}" width="12" height="${base - T}" fill="transparent"/>`;
+  });
+  svg.innerHTML = s;
+  svg.querySelectorAll('.hit').forEach((r) => {
+    r.addEventListener('pointerenter', (e) => { const q = parts[+r.dataset.i]; tip.hidden = false; tip.textContent = `${q.modes.map((k) => 'ψ' + sub(k + 1)).join(' ')} · ${q.f.toFixed(1)} Hz · ${(q.f / f1).toFixed(3)}·f₁ · level ${(mag[+r.dataset.i] / am).toFixed(3)}`; moveTip(e); });
+    r.addEventListener('pointermove', moveTip);
+    r.addEventListener('pointerleave', () => { tip.hidden = true; });
+  });
+}
+function moveTip(e) { tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, e.clientX + 12) + 'px'; tip.style.top = (e.clientY - 30) + 'px'; }
+
+// ---------- comparison ----------
+let thesisResult = null, thesisMeta = {};
+function rectInfo() {
+  let x0 = G, x1 = -1, y0 = G, y1 = -1, n = 0;
+  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) if (mask[y * G + x]) { n++; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  if (!n || n !== (x1 - x0 + 1) * (y1 - y0 + 1)) return null;
+  return { Lx: (x1 - x0 + 1) / G, Ly: (y1 - y0 + 1) / G };
+}
+function exactRect(r, k) {
+  const out = [];
+  for (let p = 1; p <= k + 2; p++) for (let q = 1; q <= k + 2; q++) out.push(Math.PI ** 2 * (p * p / (r.Lx * r.Lx) + q * q / (r.Ly * r.Ly)));
+  return out.sort((a, b) => a - b).slice(0, k);
+}
+function renderCompare() {
+  const t = $('cmpTable');
+  if (!nModes) { t.innerHTML = '<tr><td>Draw a shape first.</td></tr>'; return; }
+  const rect = rectInfo(), ex = rect ? exactRect(rect, nModes) : null;
+  const th = thesisResult && thesisResult.G === G && thesisResult.key === maskKey() ? thesisResult : null;
+  const rows = Math.min(nModes, 12);
+  let h = `<thead><tr><th>k</th><th>Thesis expansion<br>${th ? `M = ${th.M}, V₀ = ${(+th.V0).toExponential(1)}` : 'not run'}</th>${ex ? '<th>rel. err</th>' : ''}<th>New sparse solver<br>V₀ = ∞, ${mask.reduce((a, b) => a + b, 0)} unknowns</th>${ex ? '<th>rel. err</th><th>Exact (pixel rectangle)</th>' : ''}</tr></thead><tbody>`;
+  for (let k = 0; k < rows; k++) {
+    const a = th ? th.vals[k] : null, b = vals[k];
+    h += `<tr><td>λ${sub(k + 1)}</td><td>${a != null ? a.toFixed(3) : '—'}</td>${ex ? `<td class="err">${a != null ? fmtErr(a, ex[k]) : ''}</td>` : ''}<td>${b.toFixed(3)}</td>${ex ? `<td class="err">${fmtErr(b, ex[k])}</td><td>${ex[k].toFixed(3)}</td>` : ''}</tr>`;
+  }
+  h += `<tr><td>time</td><td>${th ? th.ms.toFixed(0) + ' ms' : '—'}</td>${ex ? '<td></td>' : ''}<td>${lastMs.toFixed(0)} ms</td>${ex ? '<td></td><td></td>' : ''}</tr></tbody>`;
+  t.innerHTML = h;
+  $('cmpInfo').textContent = ex ? 'Pixel rectangle detected: exact eigenvalues shown.' : 'Tip: choose the Square or Rectangle preset to compare against exact values.';
+}
+function fmtErr(a, e) { const r = (a - e) / e; return (r >= 0 ? '+' : '−') + Math.abs(r * 100).toFixed(r && Math.abs(r) < 0.001 ? 3 : 2) + '%'; }
+function maskKey() { let h = 0; for (let i = 0; i < mask.length; i++) h = (h * 31 + mask[i] * (i + 7)) | 0; return h; }
+$('cmpRun').onclick = () => {
+  const N = +$('cmpN').value, V0 = +$('cmpV').value;
+  $('cmpRun').disabled = true; $('cmpInfo').textContent = `assembling ${N * N}×${N * N} matrix and solving…`;
+  thesisMeta = { G, key: maskKey(), V0 };
+  worker.postMessage({ type: 'thesis', G, mask: mask.slice(), N, V0, K: Math.min(nModes || K, 12) });
+};
+
+// ---------- tabs ----------
+document.querySelectorAll('[role="tab"]').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
+function setTab(t) {
+  tab = t;
+  document.querySelectorAll('[role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  document.querySelectorAll('.tabctl').forEach((d) => { d.hidden = !d.dataset.for.split(' ').includes(t); });
+  $('viewBox').hidden = t === 'compare';
+  $('overlay').textContent = '';
+  if (t === 'modes') modesDirty = true;
+  if (t === 'drum') drawSpectrum(lastParts);
+  if (t === 'compare') renderCompare();
+  if (t === 'heat' && !hu.some((v) => v > 0) && nModes) $('heatMode').onclick();
+}
+
+// ---------- loop ----------
+function frame() {
+  if (C.void && !$('viewBox').hidden) {
+    if (tab === 'modes') { if (modesDirty) { renderModes(); modesDirty = false; } }
+    else if (tab === 'wave') {
+      fitCanvas(view); waveStep(G > 80 ? 4 : 3);
+      const m = maxAbs(wu); waveScale = Math.max(waveScale * 0.985, m, 0.02);
+      paintField(wu, waveScale, C.div, true, vctx, view);
+      $('overlay').textContent = 'u(x, t)';
+    } else if (tab === 'heat') {
+      fitCanvas(view); heatStep(G > 80 ? 16 : 8);
+      paintField(hu, 1, C.seq, false, vctx, view);
+      const tt = heatSteps * 0.22 / (G * G);
+      $('heatInfo').textContent = `t = ${tt.toFixed(4)}` + (nModes ? ` · slowest decay e^(−λ₁t), λ₁ = ${vals[0].toFixed(1)}` : '');
+      $('overlay').textContent = 'u(x, t)';
+    } else if (tab === 'drum') {
+      fitCanvas(view);
+      if (drum && nModes && resG === G) {
+        const slow = drum.f1 / 0.9, t = (performance.now() - drum.t0) / 1000 / slow, fld = new Float32Array(G * G);
+        let am = 0;
+        for (const q of drum.modal) {
+          const a = q.c * Math.exp(-q.gam * t) * Math.sin(q.omd * t) / q.omd, o = q.k * G * G;
+          am += Math.abs(q.c) / q.omd * maxAbs(vecs, o);
+          if (Math.abs(a) < 1e-12) continue;
+          for (let p = 0; p < G * G; p++) fld[p] += a * vecs[o + p];
+        }
+        paintField(fld, 0.45 * am || 1, C.div, true, vctx, view);
+        const cs = view.width / G; vctx.strokeStyle = C.inkS; vctx.lineWidth = Math.max(1.5, cs * 0.25);
+        vctx.beginPath(); vctx.arc((drum.sx + 0.5) * cs, (drum.sy + 0.5) * cs, Math.max(4, cs * 1.2), 0, 2 * Math.PI); vctx.stroke();
+        $('overlay').textContent = `exact modal solution · slowed ${Math.round(slow)}×`;
+      } else { blank(vctx, view, 'click inside the shape to strike'); }
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- controls ----------
+$('toolDraw').onclick = () => { tool = 'draw'; $('toolDraw').classList.add('on'); $('toolErase').classList.remove('on'); };
+$('toolErase').onclick = () => { tool = 'erase'; $('toolErase').classList.add('on'); $('toolDraw').classList.remove('on'); };
+$('preset').onchange = () => { drum = null; applyPreset($('preset').value); };
+$('clearBtn').onclick = () => { mask.fill(0); drum = null; shapeChanged(false); };
+$('kSel').onchange = () => { K = +$('kSel').value; requestSolve(false); };
+$('nodal').onchange = () => { modesDirty = true; };
+$('gridSel').onchange = () => {
+  const ng = +$('gridSel').value, nm = new Uint8Array(ng * ng);
+  for (let y = 0; y < ng; y++) for (let x = 0; x < ng; x++) nm[y * ng + x] = mask[Math.floor((y + 0.5) * G / ng) * G + Math.floor((x + 0.5) * G / ng)];
+  G = ng; mask = nm; wu = null; drum = null; nModes = 0; vecs = new Float32Array(0); img = null;
+  $('strip').innerHTML = ''; shapeChanged(false);
+};
+window.addEventListener('resize', () => { drawEditor(); modesDirty = true; });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
+new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+readColors();
+applyPreset('L');
+drawSpectrum(null);
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
