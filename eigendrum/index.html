@@ -204,6 +204,7 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="px:star">Star</option>
               <option value="px:heart">Heart</option>
               <option value="px:dumbbell">Dumbbell</option>
+              <option value="px:slit">Double slit (quantum)</option>
               <option value="px:custom" hidden>Custom drawing</option>
             </optgroup>
           </select>
@@ -291,6 +292,7 @@ td.err { color: var(--muted); font-size: 11px; }
             <button id="hitCentre" type="button">Hit the centre</button>
             <span class="small">Or click anywhere on the drum. The space bar hits again.</span>
           </div>
+          <p class="meta" id="refineInfo" style="margin:0"></p>
         </fieldset>
       </div>
       <div class="tabctl col" data-for="wave drum" hidden>
@@ -614,7 +616,7 @@ function solvePixel(mask, G, K, opts) {
   for (let k = 0; k < Kout; k++) { const x = r.X[k], sg = signFix(x) * G; for (let i = 0; i < n; i++) vecs[k * G * G + op.cells[i]] = x[i] * sg; }
   if (!opts.noAudio) {
     const xy = new F(2 * n); for (let i = 0; i < n; i++) { xy[2 * i] = (op.cells[i] % G + 0.5) / G; xy[2 * i + 1] = (((op.cells[i] / G) | 0) + 0.5) / G; }
-    audio = { kind: 'op', op, Y: r.X.slice(0, Kout), lam: vals, sqrtM: new F(n).fill(1 / G), xy, h: 1 / G };
+    audio = { kind: 'op', op, Y: r.X.slice(0, Kout), lam: vals, sqrtM: new F(n).fill(1 / G), xy, h: 1 / G }; refine = null;
   }
   return { n, K: Kout, vals, vecs, ms: performance.now() - t0, it: r.it, start };
 }
@@ -724,7 +726,7 @@ function solveFEM(g, K, R, valsOnly) {
     for (let p = 0; p < R * R; p++) { if (!map.mask[p]) continue; let s = 0; for (let j = 0; j < 3; j++) { const ti = map.T[3 * p + j]; if (ti >= 0) s += map.W[3 * p + j] * u[ti]; } vecs[o + p] = s; }
     const sg = signFix(vecs.subarray(o, o + R * R)); if (sg < 0) for (let p = 0; p < R * R; p++) vecs[o + p] = -vecs[o + p];
   }
-  audio = { kind: 'op', op: fe.op, Y: r.X.slice(0, Kout), lam: vals, sqrtM: fe.sq, xy: fe.xy, h: fe.h };
+  audio = { kind: 'op', op: fe.op, Y: r.X.slice(0, Kout), lam: vals, sqrtM: fe.sq, xy: fe.xy, h: fe.h }; refine = null;
   return { vals, vecs, mask: map.mask, R, K: Kout, nodes: fe.n, mesh: meshPayload(mesh), heat: heatPayload(fe, map), hmesh: fe.h, ms: performance.now() - t0, labels: null };
 }
 
@@ -917,8 +919,131 @@ function solveExact(g, K, R) {
     if (signFix(vecs.subarray(o, o + R * R)) < 0) for (let i = 0; i < pts.length; i++) vecs[o + pts[i]] = -vecs[o + pts[i]];
   });
   const mesh = meshGeom(g, 4000), fe = femOps(mesh), map = femRaster(mesh, fe.idx, R);
-  audio = { kind: 'exact', an, polys: P, list: null, lamA: 0 };
+  audio = { kind: 'exact', an, polys: P, list: null, lamA: 0 }; refine = null;
   return { vals: F.from(modes.map(m => m.lam)), labels: modes.map(m => m.label), vecs, mask, R, K: Kout, heat: heatPayload(fe, map), hmesh: fe.h, ms: performance.now() - t0, nodes: 0, mesh: null };
+}
+
+// ---------- exact modes for the sound: spectrum slicing with shift-invert Lanczos on a banded LDLᵀ ----------
+// Every eigenpair of S below the hammer cutoff is computed. Sylvester inertia (negative pivots of LDLᵀ(S − σI))
+// gives the exact number of eigenvalues below σ, so each slice knows how many modes it must find.
+let refine = null, refineGen = 0;
+function rcmOrder(op) {
+  const n = op.n, { rp, ci } = op, deg = new Int32Array(n), seen = new Uint8Array(n), order = [];
+  for (let i = 0; i < n; i++) deg[i] = rp[i + 1] - rp[i] - 1;
+  const bfsLast = (s0) => { const mark = new Uint8Array(n), q = [s0]; mark[s0] = 1; let last = s0; for (let h = 0; h < q.length; h++) { const v = q[h]; last = v; for (let k = rp[v]; k < rp[v + 1]; k++) { const u = ci[k]; if (!mark[u] && !seen[u]) { mark[u] = 1; q.push(u); } } } return last; };
+  while (order.length < n) {
+    let st = -1, md = 1e9; for (let i = 0; i < n; i++) if (!seen[i] && deg[i] < md) { md = deg[i]; st = i; }
+    st = bfsLast(bfsLast(st));
+    const q = [st]; seen[st] = 1;
+    for (let h = 0; h < q.length; h++) {
+      const v = q[h]; order.push(v); const nb = [];
+      for (let k = rp[v]; k < rp[v + 1]; k++) { const u = ci[k]; if (!seen[u]) { seen[u] = 1; nb.push(u); } }
+      nb.sort((x, y) => deg[x] - deg[y]); for (const u of nb) q.push(u);
+    }
+  }
+  return order.reverse();
+}
+function bandwidthOf(op, inv) { let b = 0; for (let i = 0; i < op.n; i++) for (let k = op.rp[i]; k < op.rp[i + 1]; k++) b = Math.max(b, Math.abs(inv[i] - inv[op.ci[k]])); return b; }
+function bandFactor(R, sigma) {
+  const { op, perm, inv, b } = R, n = op.n, w = b + 1, a = new F(n * w);
+  for (let ii = 0; ii < n; ii++) { const i = perm[ii]; for (let k = op.rp[i]; k < op.rp[i + 1]; k++) { const jj = inv[op.ci[k]]; if (jj <= ii) a[ii * w + (ii - jj)] += op.v[k]; } a[ii * w] -= sigma; }
+  const D = new F(n), tiny = 1e-13 * op.bound; let neg = 0;
+  for (let k = 0; k < n; k++) {
+    let dk = a[k * w]; if (Math.abs(dk) < tiny) dk = dk < 0 ? -tiny : tiny; D[k] = dk; if (dk < 0) neg++;
+    const iend = Math.min(n - 1, k + b);
+    for (let i = k + 1; i <= iend; i++) a[i * w + (i - k)] /= dk;
+    for (let i = k + 1; i <= iend; i++) { const t = a[i * w + (i - k)] * dk; if (t === 0) continue; const ri = i * w; for (let j = k + 1; j <= i; j++) a[ri + (i - j)] -= t * a[j * w + (j - k)]; }
+  }
+  return { a, D, neg, w, sigma };
+}
+function bandSolve(R, Fc, rhs, out) {
+  const { perm, b } = R, n = R.op.n, { a, D, w } = Fc, y = R.tmp;
+  for (let ii = 0; ii < n; ii++) y[ii] = rhs[perm[ii]];
+  for (let i = 0; i < n; i++) { let s = y[i]; const ri = i * w; for (let j = Math.max(0, i - b); j < i; j++) s -= a[ri + (i - j)] * y[j]; y[i] = s; }
+  for (let i = 0; i < n; i++) y[i] /= D[i];
+  for (let i = n - 1; i >= 0; i--) { let s = y[i]; const j1 = Math.min(n - 1, i + b); for (let j = i + 1; j <= j1; j++) s -= a[j * w + (j - i)] * y[j]; y[i] = s; }
+  for (let ii = 0; ii < n; ii++) out[perm[ii]] = y[ii];
+}
+function siSlice(R, lo, hi, need) { // all eigenpairs with lo <= λ < hi; need = exact count from inertia
+  const op = R.op, n = op.n, sigma = lo + (0.5 + 0.2 * (Math.random() - 0.5)) * (hi - lo), Fc = bandFactor(R, sigma), got = [];
+  for (let restart = 0, stale = 0; got.length < need && restart < need + 8 && stale < 3; restart++) {
+    const before = got.length, left = need - got.length, mmax = Math.min(n, 2 * left + 40);
+    const Q = [], al = [], be = []; let q = randVec(n), lastBn = 0, lastConv = -1, stall = 0;
+    for (const e of got) axpy(-dot(q, e.y, n), e.y, q, n);
+    let nq = Math.sqrt(dot(q, q, n)); for (let i = 0; i < n; i++) q[i] /= nq;
+    for (let j = 0; j < mmax; j++) {
+      Q.push(q); const wv = new F(n); bandSolve(R, Fc, q, wv);
+      for (const e of got) axpy(-dot(wv, e.y, n), e.y, wv, n);
+      al.push(dot(wv, q, n));
+      for (let pass = 0; pass < 2; pass++) for (const qi of Q) axpy(-dot(wv, qi, n), qi, wv, n);
+      const bn = Math.sqrt(dot(wv, wv, n)); lastBn = bn;
+      const m = Q.length;
+      if (m % 8 === 0 || j === mmax - 1 || bn < 1e-10) {
+        const d = F.from(al), e = new F(m), zl = new F(m); for (let i = 1; i < m; i++) e[i] = be[i - 1]; zl[m - 1] = 1; tqli(d, e, m, zl);
+        let conv = 0; for (let i = 0; i < m; i++) { const th = d[i]; if (th === 0) continue; const lam = sigma + 1 / th; if (lam >= lo && lam < hi && Math.abs(bn * zl[i]) < 1e-9 * Math.abs(th)) conv++; }
+        if (conv >= left || bn < 1e-10) break;
+        if (conv > 0 && conv === lastConv) { if (++stall >= 2) break; } else stall = 0;
+        lastConv = conv;
+      }
+      be.push(bn); q = wv; for (let i = 0; i < n; i++) q[i] /= bn;
+    }
+    const m = Q.length, T = new F(m * m);
+    for (let i = 0; i < m; i++) { T[i * m + i] = al[i]; if (i + 1 < m) { T[i * m + i + 1] = be[i]; T[(i + 1) * m + i] = be[i]; } }
+    const { vals, V } = jacobi(T, m), Sy = new F(n);
+    for (let i = 0; i < m; i++) {
+      const th = vals[i]; if (th === 0) continue; const lam = sigma + 1 / th;
+      if (!(lam >= lo && lam < hi) || Math.abs(lastBn * V[(m - 1) * m + i]) > 1e-8 * Math.abs(th)) continue;
+      const y = new F(n); for (let k = 0; k < m; k++) axpy(V[k * m + i], Q[k], y, n);
+      for (const e of got) axpy(-dot(y, e.y, n), e.y, y, n);
+      const nr = Math.sqrt(dot(y, y, n)); if (nr < 0.5) continue; for (let k = 0; k < n; k++) y[k] /= nr;
+      matvec(op, y, Sy); const rq = dot(y, Sy, n); let r2 = 0; for (let k = 0; k < n; k++) r2 += (Sy[k] - rq * y[k]) ** 2;
+      if (Math.sqrt(r2) <= 1e-6 * Math.max(rq, 1) && rq >= lo && rq < hi) got.push({ lam: rq, y });
+      if (got.length >= need) break;
+    }
+    stale = got.length === before ? stale + 1 : 0;
+  }
+  return got;
+}
+function startRefine(sigma) {
+  if (!audio || audio.kind !== 'op') { refine = null; return; }
+  const op = audio.op, target = Math.min(18.4 / (sigma * sigma), op.bound);
+  if (refine && refine.a === audio) { if (target > refine.target) { refine.target = target; refine.finished = false; scheduleRefine(); } else postRefine(); return; }
+  const n = op.n, nat = Int32Array.from({ length: n }, (_, i) => i), rc = Int32Array.from(rcmOrder(op));
+  const invOf = (pm) => { const v = new Int32Array(n); for (let i = 0; i < n; i++) v[pm[i]] = i; return v; };
+  const invN = invOf(nat), invR = invOf(rc), bN = bandwidthOf(op, invN), bR = bandwidthOf(op, invR);
+  const useR = bR < bN, perm = useR ? rc : nat, inv = useR ? invR : invN;
+  let area = 0; for (let i = 0; i < n; i++) area += audio.sqrtM[i] ** 2;
+  refine = { gen: ++refineGen, a: audio, op, perm, inv, b: useR ? bR : bN, tmp: new F(n), area, locked: [], lamDone: 0, nuDone: 0, target, c: 40, finished: false, cap: Math.max(200, Math.floor(1.2e7 / n)), capped: false, t0: performance.now() };
+  scheduleRefine();
+}
+function scheduleRefine() { const g = refine.gen; setTimeout(() => { if (refine && refine.gen === g && refineStep()) scheduleRefine(); }, 0); }
+function refineStep() { // one slice; returns true while there is more to do
+  const R = refine; if (!R || R.finished) return false;
+  if (R.lamDone >= R.target * (1 - 1e-12) || R.locked.length >= R.cap) { R.finished = true; R.capped = R.lamDone < R.target * (1 - 1e-12); postRefine(); return false; }
+  const jit = (x) => x >= R.target ? R.target : x * (1 + 2e-7 * (Math.random() - 0.5));
+  let hi = jit(Math.min(R.target, Math.max(R.lamDone * 1.003 + 1e-6, 4 * Math.PI * (R.nuDone + R.c) / R.area)));
+  let Fh = bandFactor(R, hi), cnt = Fh.neg - R.nuDone;
+  while (cnt > 2.5 * R.c && (hi - R.lamDone) > 2e-3 * hi) { hi = jit(0.5 * (R.lamDone + hi)); Fh = bandFactor(R, hi); cnt = Fh.neg - R.nuDone; }
+  if (R.locked.length + cnt > R.cap) { R.finished = true; R.capped = true; postRefine(); return false; }
+  if (cnt > 0) {
+    const got = siSlice(R, R.lamDone, hi, cnt);
+    if (got.length !== cnt) { // retry with a narrower slice; give up cleanly after repeated failures
+      R.fails = (R.fails || 0) + 1; R.c = Math.max(6, Math.floor(R.c / 2));
+      if (R.fails > 6) { R.finished = true; R.capped = true; postRefine(); return false; }
+      return true;
+    }
+    R.fails = 0;
+    got.sort((x, y) => x.lam - y.lam);
+    for (const e of got) R.locked.push({ lam: e.lam, y: Float32Array.from(e.y) });
+    R.c = Math.min(60, R.c + 4);
+  }
+  R.lamDone = hi; R.nuDone = Fh.neg;
+  postRefine(); return true;
+}
+function refineSync(sigma) { startRefine(sigma); const R = refine; if (!R) return null; while (refineStep()) {} return R; }
+function postRefine() {
+  const R = refine; if (!R) return;
+  self.postMessage && self.postMessage({ type: 'refine', gen: R.gen, done: R.locked.length, lamDone: R.lamDone, target: R.target, finished: R.finished, capped: R.capped, ms: performance.now() - R.t0 });
 }
 
 // ---------- strikes: exact low modes + Lanczos–Gauss quadrature of the rest ----------
@@ -977,16 +1102,17 @@ function opStrike(a, x, y, sigma, listener) {
   if (tot === 0) { g[bi] = 1; tot = sqrtM[bi] * sqrtM[bi]; }
   const b = new F(n); for (let i = 0; i < n; i++) b[i] = sqrtM[i] * g[i] / tot;       // M^{1/2} g, ∫g = 1
   const q = listener === 'far' ? F.from(sqrtM) : F.from(b);                             // M^{1/2} 1  or  M^{1/2} g
-  const parts = [];
-  for (let k = 0; k < Y.length; k++) { const c = dot(b, Y[k], n), w = dot(q, Y[k], n); parts.push({ lam: lam[k], A: c * w, exact: true }); axpy(-c, Y[k], b, n); axpy(-w, Y[k], q, n); }
-  const m = 300; let nTail = 0, lamMax = lam[lam.length - 1] || 0;
+  const parts = [], R = refine && refine.a === a && refine.locked.length && refine.lamDone >= lam[lam.length - 1] ? refine : null;
+  const YY = R ? R.locked.map(e => e.y) : Y, LL = R ? R.locked.map(e => e.lam) : lam;
+  for (let k = 0; k < YY.length; k++) { const c = dot(b, YY[k], n), w = dot(q, YY[k], n); parts.push({ lam: LL[k], A: c * w, exact: true }); axpy(-c, YY[k], b, n); axpy(-w, YY[k], q, n); }
+  const m = 300; let nTail = 0, lamMax = LL[LL.length - 1] || 0;
   const add = (L, s) => { L.th.forEach((t, j) => { if (L.w[j] * Math.abs(s) > 0) { parts.push({ lam: t, A: s * L.w[j], exact: false }); nTail++; lamMax = Math.max(lamMax, t); } }); };
   if (listener === 'far') {
     const pl = new F(n), mi = new F(n); for (let i = 0; i < n; i++) { pl[i] = b[i] + q[i]; mi[i] = b[i] - q[i]; }
     add(lanczosMeasure(op, pl, m), 0.25); add(lanczosMeasure(op, mi, m), -0.25);
   } else add(lanczosMeasure(op, b, m), 1);
   const merged = mergeParts(parts.filter(p => p.lam > 0));
-  return { parts: merged, info: { exact: Y.length, tail: nTail, lamMax, sigma } };
+  return { parts: merged, info: { exact: YY.length, tail: nTail, lamMax, sigma, exactTo: R ? R.lamDone : lam[lam.length - 1], refined: !!R, refineDone: R ? R.finished && !R.capped : false } };
 }
 function exactStrike(a, x, y, sigma, listener) {
   const lamA = Math.min(18.4 / (sigma * sigma), 60000);
@@ -1051,6 +1177,7 @@ self.onmessage = (ev) => {
     else if (m.type === 'femvals') { const r = solveFEM(GEOMS[m.gkey].make(), m.K, 0, true); self.postMessage({ type: 'femvals', key: m.key, ...r }); }
     else if (m.type === 'pixvals') { const r = solvePixel(m.mask, m.G, m.K, { valsOnly: true, noCache: true, noAudio: true }); self.postMessage({ type: 'pixvals', key: m.key, G: m.G, ...r }); }
     else if (m.type === 'thesis') { const r = thesis(m.mask, m.G, m.N, m.V0, m.K); self.postMessage({ type: 'thesis', key: m.key, N: m.N, V0: m.V0, G: m.G, ...r }); }
+    else if (m.type === 'refine') startRefine(m.sigma);
     else if (m.type === 'strike') {
       if (!audio) return;
       const r = audio.kind === 'exact' ? exactStrike(audio, m.x, m.y, m.sigma, m.listener) : opStrike(audio, m.x, m.y, m.sigma, m.listener);
@@ -1110,9 +1237,12 @@ const presets = {
   star: (x, y) => { const r = Math.hypot(x, y), t = Math.atan2(y, x) + Math.PI / 2; return r < 0.56 + 0.32 * Math.cos(5 * t); },
   heart: (x, y) => { const X = x * 1.2, Y = -y * 1.2 + 0.2, a = X * X + Y * Y - 1; return a * a * a - X * X * Y * Y * Y < 0; },
   dumbbell: (x, y) => Math.hypot(x - 0.5, y) < 0.4 || Math.hypot(x + 0.5, y) < 0.4 || (Math.abs(y) < 0.09 && Math.abs(x) < 0.5),
+  // a box split by a thin wall with two narrow slits
+  slit: (x, y) => Math.abs(x) < 0.95 && Math.abs(y) < 0.7 && !(Math.abs(x + 0.45) < 0.025 && !(Math.abs(y - 0.16) < 0.04 || Math.abs(y + 0.16) < 0.04)),
 };
+let currentPreset = 'hex';
 function applyPreset(name) {
-  domain = null; G = Gp; const f = presets[name]; mask = new Uint8Array(G * G);
+  currentPreset = name; domain = null; G = Gp; const f = presets[name]; mask = new Uint8Array(G * G);
   for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) mask[y * G + x] = f((x + 0.5) / G * 2 - 1, (y + 0.5) / G * 2 - 1) ? 1 : 0;
   pixelReset(); shapeChanged(false);
 }
@@ -1180,6 +1310,18 @@ function requestSolve(warm) {
     worker.postMessage({ type: 'eig', id: ++reqId, G, K, mask: mask.slice(), warm, tol: painting ? 2e-3 : 2e-4 });
   }, painting ? 30 : 0);
 }
+let refineState = null;
+function requestRefine() { if (!nModes) return; refineState = null; showRefine(null); worker.postMessage({ type: 'refine', sigma: hammerSigma() }); }
+function showRefine(m) {
+  if (m) refineState = m;
+  const el = $('refineInfo'); if (!el) return;
+  if (domain && domain.method === 'exact') { el.textContent = 'Sound: every mode up to the hammer cutoff comes straight from the exact formulas.'; return; }
+  const r = refineState, f1 = +$('f0').value, fOf = (lam) => fmtHz(f1 * Math.sqrt(lam / (vals[0] || 1)));
+  if (!r) { el.textContent = 'Sound: computing exact modes up to the hammer cutoff…'; return; }
+  if (r.finished && !r.capped) el.textContent = `Sound: all ${r.done.toLocaleString()} modes up to the hammer cutoff (${fOf(r.target)}) computed exactly, in ${(r.ms / 1000).toFixed(1)} s.`;
+  else if (r.finished && r.capped) el.textContent = `Sound: ${r.done.toLocaleString()} exact modes up to ${fOf(r.lamDone)} (memory limit); above that the Lanczos estimate fills in.`;
+  else el.textContent = `Sound: computing exact modes… ${r.done.toLocaleString()} so far, up to ${fOf(r.lamDone)} of ${fOf(r.target)}. Hits now use what is ready.`;
+}
 function setModes(m) {
   vals = m.vals; vecs = m.vecs; nModes = m.K; resG = G; lastMs = m.ms; reqDone++;
   if (selected >= nModes) selected = 0;
@@ -1187,6 +1329,7 @@ function setModes(m) {
   if (tab === 'compare') renderCompare();
 }
 function loadSmooth(key) {
+  currentPreset = key;
   const def = SH.GEOMS[key], g = def.make();
   domain = { key, geom: g, polys: SH.geomPolys(g), how: def.how, method: g.analytic ? 'exact' : 'fem', mesh: null, labels: null, nodes: 0, hmesh: 0.02 };
   pixelReset(); heat = null; cmp = {};
@@ -1198,19 +1341,20 @@ worker.onmessage = (ev) => {
   const m = ev.data;
   if (m.type === 'eig') {
     busy = false;
-    if (!domain && m.G === G) { setModes(m); setStatus(nModes ? `${m.n.toLocaleString()} px · ${nModes} modes · ${m.ms.toFixed(0)} ms` : 'draw a shape', false); }
+    if (!domain && m.G === G) { setModes(m); if (!painting) requestRefine(); setStatus(nModes ? `${m.n.toLocaleString()} px · ${nModes} modes · ${m.ms.toFixed(0)} ms` : 'draw a shape', false); }
     else setStatus($('statusText').textContent, false);
     if (pending) { pending = false; requestSolve(true); }
   } else if (m.type === 'smooth') {
     if (!domain || m.id !== smoothReq) return;
     G = m.R; mask = m.mask; img = null; setModes(m);
     domain.mesh = m.mesh; domain.labels = m.labels; domain.nodes = m.nodes; domain.hmesh = m.hmesh;
-    heatFromFEM(m.heat); drawEditor();
+    heatFromFEM(m.heat); drawEditor(); requestRefine();
     setStatus(`${m.method === 'exact' ? 'exact' : 'mesh, ' + m.nodes.toLocaleString() + ' points'} · ${nModes} modes · ${m.ms.toFixed(0)} ms`, false);
   } else if (m.type === 'femvals') { if (m.key === cmpKey()) { cmp.fem = m; renderCompare(); } }
   else if (m.type === 'pixvals') { if (m.key === cmpKey()) { cmp.pix = m; renderCompare(); } }
   else if (m.type === 'thesis') { if (m.key === cmpKey()) { cmp.thesis = m; renderCompare(); } $('cmpRun').disabled = false; }
   else if (m.type === 'strike') onStrike(m);
+  else if (m.type === 'refine') showRefine(m);
   else if (m.type === 'error') { setStatus(`solver error in ${m.what}: ${m.message}`, false); busy = false; $('cmpRun').disabled = false; }
 };
 
@@ -1461,7 +1605,10 @@ function renderQuantum(dt) {
   const w = fitCanvas(view);
   if (!heat || (domain && resG !== G)) { blank('computing…'); return; }
   if (qEmpty) { blank('click inside the shape to drop a wave packet'); if (qDrag) drawQArrow(w); $('qInfo').textContent = ''; return; }
-  if (!qs || qs.R.length !== heat.n) { const [rx, ry] = qDefaultPoint(); qPacket(rx, ry, 0.3 * qKMax(), 0.12 * qKMax()); }
+  if (!qs || qs.R.length !== heat.n) {
+    if (currentPreset === 'slit' && !domain) { $('qSigma').value = 80; $('qSpeed').value = 8; qShowSliders(); qPacket(0.12, 0.5, 0.6 * qKMax(), 0); }
+    else { const [rx, ry] = qDefaultPoint(); qPacket(rx, ry, 0.3 * qKMax(), 0.12 * qKMax()); }
+  }
   if (!qPaused) qStep(dt * qRate());
   if (!qRe || qRe.length !== G * G) { qRe = new F(G * G); qIm = new F(G * G); }
   heat.toRaster(qs.R, qRe); heat.toRaster(qs.I, qIm);
@@ -1525,7 +1672,7 @@ function strike(cx, cy, animate) {
   const id = ++strikeSeq; pendingStrikes.set(id, { listener, key });
   worker.postMessage({ type: 'strike', id, x, y, sigma, listener });
   lastHit = { x, y };
-  if (animate) drum = { c: projectBump(x, y, visSigma(), null), t0: performance.now(), x, y };
+  if (animate) drum = { c: projectBump(x, y, visSigma(), null), t0: performance.now(), x, y, sigma };
 }
 function refGain(ref, listener, sr) {
   if (!ref || !ref.parts) return null;
@@ -1560,6 +1707,7 @@ const LISTEN_HELP = {
 function showListenHelp() { $('listenHelp').textContent = LISTEN_HELP[$('listener').value]; }
 $('listener').addEventListener('change', showListenHelp); showListenHelp();
 $('hammer').addEventListener('input', () => { $('hamOut').textContent = `σ = ${hammerSigma().toFixed(3)}`; });
+$('hammer').addEventListener('change', () => { if (nModes && !(domain && domain.method === 'exact')) worker.postMessage({ type: 'refine', sigma: hammerSigma() }); });
 for (const id of ['z0', 'z1']) $(id).addEventListener('input', () => { showDamping(); if (lastSpec) drawSpectrum(); });
 
 // ---------- spectrum chart (log frequency, dB) ----------
@@ -1626,7 +1774,7 @@ function drawSpectrum() {
   specGeom = { W, H, L, R, T1, B1, T2, B2, fLo, fHi, tMin, tMax, f1, w1, fA, fB, sx, items };
   if (inf) {
     const lim = fGrid && fGrid < fCut ? `the ${domain ? 'mesh' : 'grid'} limit at ${fmtHz(fGrid)}` : `the hammer cutoff at ${fmtHz(fCut)}`;
-    $('specInfo').textContent = `${inf.exact.toLocaleString()} exact modes${inf.tail ? ` and ${inf.tail} Lanczos estimates for the rest` : ''} · hammer width σ = ${inf.sigma.toFixed(3)} · the sound stops at ${lim}`;
+    $('specInfo').textContent = `${inf.exact.toLocaleString()} exact modes${inf.exactTo ? ` (complete up to ${fmtHz(fOf(inf.exactTo))})` : ''}${inf.tail ? `, Lanczos estimate above that` : ''} · hammer width σ = ${inf.sigma.toFixed(3)} · the sound stops at ${lim}`;
   } else $('specInfo').textContent = '';
   showDamping();
 }
@@ -1822,7 +1970,11 @@ function frame(now) {
         const coef = new F(nModes); let am = 0;
         for (let k = 0; k < nModes; k++) { const r = vals[k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r), od = Math.sqrt(Math.max(om * om - g * g, 1e-12)); coef[k] = drum.c[k] * Math.exp(-g * t) * Math.sin(od * t) / od; am += Math.abs(drum.c[k]) / od * maxAbs(vecs, k * G * G); }
         modalField(coef, heatField); paintField(heatField, 0.45 * am || 1, C.div, true, vctx, view);
-        const w = view.width, hs = Math.max(5, w / 75); vctx.lineWidth = 3; vctx.strokeStyle = '#fffef9'; vctx.strokeRect(drum.x * w - hs, drum.y * w - hs, 2 * hs, 2 * hs); vctx.lineWidth = 1.5; vctx.strokeStyle = C.ink; vctx.strokeRect(drum.x * w - hs, drum.y * w - hs, 2 * hs, 2 * hs);
+        const w = view.width, cx0 = drum.x * w, cy0 = drum.y * w, r1 = Math.max(3, drum.sigma * w);
+        vctx.save(); vctx.setLineDash([4, 4]); vctx.lineWidth = 1; vctx.strokeStyle = C.ink; vctx.globalAlpha = 0.5; vctx.beginPath(); vctx.arc(cx0, cy0, 2 * r1, 0, 2 * Math.PI); vctx.stroke(); vctx.restore();
+        vctx.lineWidth = 3; vctx.strokeStyle = '#fffef9'; vctx.beginPath(); vctx.arc(cx0, cy0, r1, 0, 2 * Math.PI); vctx.stroke();
+        vctx.lineWidth = 1.5; vctx.strokeStyle = C.ink; vctx.beginPath(); vctx.arc(cx0, cy0, r1, 0, 2 * Math.PI); vctx.stroke();
+        vctx.fillStyle = C.ink; vctx.fillRect(cx0 - 1.5, cy0 - 1.5, 3, 3);
         $('overlay').textContent = 'slowed down';
       } else blank(nModes ? 'click anywhere on the drum to play it, or press “Hit the centre”' : 'computing…');
     }
@@ -1833,7 +1985,12 @@ function frame(now) {
 // ---------- controls ----------
 $('toolDraw').onclick = () => { tool = 'draw'; $('toolDraw').classList.add('on'); $('toolErase').classList.remove('on'); };
 $('toolErase').onclick = () => { tool = 'erase'; $('toolErase').classList.add('on'); $('toolDraw').classList.remove('on'); };
-$('preset').onchange = () => { const v = $('preset').value; if (v === 'px:custom') return; cmp = {}; if (v.startsWith('px:')) applyPreset(v.slice(3)); else loadSmooth(v.split(':')[1]); };
+$('preset').onchange = () => {
+  const v = $('preset').value; if (v === 'px:custom') return; cmp = {};
+  if (v === 'px:slit') { $('kSel').value = '20'; K = 20; qEmpty = false; qs = null; setQView('abs'); }
+  if (v.startsWith('px:')) applyPreset(v.slice(3)); else loadSmooth(v.split(':')[1]);
+  if (v === 'px:slit') setTab('quantum');
+};
 $('clearBtn').onclick = () => { if (domain) { domain = null; G = Gp; } mask = new Uint8Array(G * G); $('preset').value = 'px:custom'; pixelReset(); shapeChanged(false); };
 $('kSel').onchange = () => { K = +$('kSel').value; if (domain) { if (K > nModes) loadSmooth(domain.key); else { drawStrip(); } } else requestSolve(false); };
 $('nodal').onchange = () => { modesDirty = true; };
