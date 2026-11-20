@@ -74,7 +74,20 @@ h1 { margin: 0 0 10px; color: var(--navy-dark); font: bold 36px/1 var(--font-dis
 @keyframes pulse { 50% { opacity: 0.2; } }
 
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-@media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } .stage > section:nth-child(2) { order: -1; } }
+.stage { grid-template-areas: "shape view"; }
+.shape-panel { grid-area: shape; } .view-panel { grid-area: view; } .sound-panel { grid-area: sound; }
+.stage.player { grid-template-areas: "view sound" "shape shape"; }
+.stage.player .shape-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); grid-template-areas: "head head" "tools canvas" "help canvas" "hint canvas" ". canvas"; column-gap: 18px; row-gap: 10px; align-items: start; }
+.stage.player .shape-panel > .panel-head { grid-area: head; }
+.stage.player .shape-panel > .toolbar { grid-area: tools; }
+.stage.player .shape-panel > #editor { grid-area: canvas; }
+.stage.player .shape-panel > #modesHelp { grid-area: help; }
+.stage.player .shape-panel > #hint { grid-area: hint; }
+@media (max-width: 860px) {
+  .stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "view" "shape"; }
+  .stage.player { grid-template-areas: "view" "sound" "shape"; }
+  .stage.player .shape-panel { display: flex; }
+}
 .panel { background: var(--panel); border: 1px solid #96a79a; box-shadow: 2px 2px 0 #d5ddd7; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: -12px -12px 2px; padding: 5px 10px; background: linear-gradient(90deg, #dce6df, #f8f8f4); border-bottom: 1px solid #a5b5a9; min-height: 34px; }
 h2 { margin: 0; color: var(--navy-dark); font: bold 18px var(--font-display); }
@@ -171,8 +184,8 @@ td.err { color: var(--muted); font-size: 11px; }
     <div class="status" id="status" role="status"><span class="dot"></span><span id="statusText">starting solver…</span></div>
   </header>
 
-  <main class="stage">
-    <section class="panel" aria-labelledby="shape-h">
+  <main class="stage" id="stage">
+    <section class="panel shape-panel" id="shapePanel" aria-labelledby="shape-h">
       <div class="panel-head"><h2 id="shape-h">Shape Ω</h2><span class="meta" id="shapeMeta"></span></div>
       <div class="toolbar">
         <label for="preset">Shape
@@ -230,15 +243,14 @@ td.err { color: var(--muted); font-size: 11px; }
         <button id="clearBtn" class="ghost" type="button">Clear</button>
       </div>
       <canvas id="editor" class="sq" aria-label="Shape editor"></canvas>
-      <p class="small" id="modesHelp" style="margin:0">“Modes used” is how many modes make up the drum: the mode strip, the wave, the drum animation and the sound. Heat and the Schrödinger particle step on the full grid instead.</p>
+      <p class="small" id="modesHelp" style="margin:0">“Modes used” is how many modes make up the drum: the mode strip, the drum and wave views, and the sound. Heat and the Schrödinger particle step on the full grid instead.</p>
       <p class="hint" id="hint">Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine.</p>
     </section>
 
-    <section class="panel" aria-label="Live view">
+    <section class="panel view-panel" id="viewPanel" aria-label="Live view">
       <div class="panel-head">
         <div class="tabs" role="tablist" aria-label="View">
           <button role="tab" data-tab="modes" aria-selected="false" type="button">Modes</button>
-          <button role="tab" data-tab="wave" aria-selected="false" type="button">Wave</button>
           <button role="tab" data-tab="heat" aria-selected="false" type="button">Heat</button>
           <button role="tab" data-tab="drum" aria-selected="true" type="button">Drum</button>
           <button role="tab" data-tab="quantum" aria-selected="false" type="button">Schrödinger</button>
@@ -255,11 +267,13 @@ td.err { color: var(--muted); font-size: 11px; }
         <label><input type="checkbox" id="tones" checked> Play each mode’s note</label>
         <span class="small">Red and blue move in opposite directions. The lines are where the drum stays still.</span>
       </div>
-      <div class="tabctl" data-for="wave" hidden>
-        <span class="small">Click the drum to hit it.</span>
-        <button id="waveMode" type="button">Ring selected mode</button>
-        <button id="waveReset" class="ghost" type="button">Stop</button>
-        <label><input type="checkbox" id="waveSound" checked> Sound</label>
+      <div class="tabctl" data-for="drum" hidden>
+        <div class="seg" role="group" aria-label="Drum view">
+          <button id="dvDrum" class="on" type="button">Drum</button><button id="dvWave" type="button">Wave</button>
+        </div>
+        <span class="small" id="dvHelp">Each hit replays slowly, so you can watch the drum ring.</span>
+        <button id="waveMode" type="button" hidden>Ring selected mode</button>
+        <button id="waveReset" class="ghost" type="button" hidden>Stop</button>
       </div>
       <div class="tabctl col" data-for="heat" hidden>
         <div class="toolbar">
@@ -288,24 +302,7 @@ td.err { color: var(--muted); font-size: 11px; }
           <span class="meta" id="heatInfo"></span>
         </div>
       </div>
-      <div class="tabctl col" data-for="drum" hidden>
-        <fieldset>
-          <legend>Strike</legend>
-          <div class="ctl-grid">
-            <label for="f0">Pitch f₁</label><input type="range" id="f0" min="55" max="440" value="110" data-default="110"><output id="f0out" class="meta">110 Hz</output>
-            <label for="hammer">Hammer width</label><input type="range" id="hammer" min="15" max="80" value="30" data-default="30"><output id="hamOut" class="meta">σ = 0.030</output>
-            <label for="listener">Listen</label><select id="listener"><option value="far" selected>Across the room</option><option value="contact">Contact mic</option></select><span></span>
-          </div>
-          <p class="explain" id="listenHelp"></p>
-          <div class="toolbar">
-            <button id="hitAgain" class="primary" type="button">Hit again</button>
-            <button id="hitCentre" type="button">Hit the center</button>
-            <span class="small">Or click anywhere on the drum. The space bar hits again.</span>
-          </div>
-          <p class="meta" id="refineInfo" style="margin:0"></p>
-        </fieldset>
-      </div>
-      <div class="tabctl col" data-for="wave drum" hidden>
+      <div class="tabctl col" data-for="drum" id="dampBox" hidden>
         <fieldset>
           <legend>Damping</legend>
           <div class="ctl-grid">
@@ -314,11 +311,6 @@ td.err { color: var(--muted); font-size: 11px; }
           </div>
           <p class="small">Mode k dies out at rate γ<sub>k</sub> = ω₁(ζ₀ + ζ₁λ<sub>k</sub>/λ₁). <span id="ringInfo"></span></p>
         </fieldset>
-      </div>
-      <div class="tabctl col" data-for="drum" hidden>
-        <div class="legend"><span><i style="background: var(--accent)"></i>modes computed exactly</span><span><i style="background: #7a2438"></i>provisional Lanczos estimate (only while modes are still computing)</span><span><i style="background: none; border-top: 2px dashed var(--ink)"></i>hammer weighting</span><span>dotted: where a string’s overtones would be</span></div>
-        <svg class="spectrum" id="spectrum" viewBox="0 0 600 304" role="img" aria-label="Loudness and ring time of each note from the last hit"></svg>
-        <div class="meta" id="specInfo"></div>
       </div>
       <div class="tabctl col" data-for="quantum" hidden>
         <p class="small" style="margin:0">A quantum billiard: a particle trapped in the shape. Click to drop a wave packet; drag before letting go to give it momentum.</p>
@@ -358,6 +350,27 @@ td.err { color: var(--muted); font-size: 11px; }
         </div>
         <div class="tablewrap"><table id="cmpTable"></table></div>
       </div>
+    </section>
+    <section class="panel sound-panel" id="soundPanel" aria-labelledby="sound-h" hidden>
+      <div class="panel-head"><h2 id="sound-h">Sound</h2><span class="meta">what you hear from the last hit</span></div>
+        <div class="legend"><span><i style="background: var(--accent)"></i>modes computed exactly</span><span><i style="background: #7a2438"></i>provisional Lanczos estimate (only while modes are still computing)</span><span><i style="background: none; border-top: 2px dashed var(--ink)"></i>hammer weighting</span><span>dotted: where a string’s overtones would be</span></div>
+        <svg class="spectrum" id="spectrum" viewBox="0 0 600 304" role="img" aria-label="Loudness and ring time of each note from the last hit"></svg>
+        <div class="meta" id="specInfo"></div>
+        <fieldset>
+          <legend>Strike</legend>
+          <div class="ctl-grid">
+            <label for="f0">Pitch f₁</label><input type="range" id="f0" min="55" max="440" value="110" data-default="110"><output id="f0out" class="meta">110 Hz</output>
+            <label for="hammer">Hammer width</label><input type="range" id="hammer" min="15" max="80" value="30" data-default="30"><output id="hamOut" class="meta">σ = 0.030</output>
+            <label for="listener">Listen</label><select id="listener"><option value="far" selected>Across the room</option><option value="contact">Contact mic</option></select><span></span>
+          </div>
+          <p class="explain" id="listenHelp"></p>
+          <div class="toolbar">
+            <button id="hitAgain" class="primary" type="button">Hit again</button>
+            <button id="hitCentre" type="button">Hit the center</button>
+            <span class="small">Or click anywhere on the drum. The space bar hits again.</span>
+          </div>
+          <p class="meta" id="refineInfo" style="margin:0"></p>
+        </fieldset>
     </section>
   </main>
 
@@ -1420,6 +1433,7 @@ function updateUse() {
   const before = nModes; nModes = basis ? Math.min(basis.count, targetCount()) : 0; vals = basis ? basis.lam.subarray(0, nModes) : new F(0);
   if (selected >= nModes) selected = 0;
   if (nModes !== before) { mw = null; if (nStrip() !== $('strip').children.length || before < STRIP_MAX) drawStrip(); modesDirty = true; }
+  const ns = nStrip(); $('stripMeta').textContent = nModes > ns ? `showing the first ${ns} of ${nModes.toLocaleString()} modes · ◀ ▶ on the Modes tab steps through all of them` : '−Δψ = λψ, ψ = 0 on the edge · click one to select it';
 }
 function requestBasis() { if (!basis) return; worker.postMessage({ type: 'basis', count: Kreq(), sigma: hammerSigma() }); }
 function showProgress(m) {
@@ -1565,7 +1579,7 @@ function selectMode(k) {
 }
 
 // ---------- wave: exact modal evolution with the modes in use ----------
-let waveScale = 0.02, mw = null;
+let waveScale = 0.02, mw = null, dview = 'drum';
 function damping() { return { z0: +$('z0').value * 0.0005, z1: +$('z1').value * 0.00008 }; }
 function projectBump(x, y, sigma, peak) { // c_k = ∫ g φ_k over the grid/mesh points (peak = null: unit integral)
   const c = new F(nModes), pts = [], n = basis.n; let tot = 0;
@@ -1793,8 +1807,9 @@ function onStrike(m) {
   playBuffer(synthesize(osc, ctx.sampleRate, 4, gain), ctx.sampleRate);
   lastSpec = { parts: m.parts, listener: ps.listener, info: m.info, nyq: ctx.sampleRate / 2 }; drawSpectrum();
 }
-function hitAgain() { if (lastHit) strike(lastHit.x * G, lastHit.y * G, true); else hitCentre(); }
-function hitCentre() { if (!nModes || resG !== G) return; const [rx, ry] = refPoint(); strike(rx * G, ry * G, true); }
+function hitAt(x, y) { if (dview === 'wave' && nModes) { const c = projectBump(x, y, visSigma(), null); if (!mw) modalWave(0); for (let k = 0; k < nModes; k++) mw.v[k] += c[k]; strike(x * G, y * G, false); } else strike(x * G, y * G, true); }
+function hitAgain() { if (lastHit) hitAt(lastHit.x, lastHit.y); else hitCentre(); }
+function hitCentre() { if (!nModes || resG !== G) return; const [rx, ry] = refPoint(); hitAt(rx, ry); }
 $('hitAgain').onclick = hitAgain; $('hitCentre').onclick = hitCentre;
 document.addEventListener('keydown', (e) => {
   if (tab !== 'drum' || e.code !== 'Space' || e.repeat) return;
@@ -1861,7 +1876,7 @@ function drawSpectrum() {
     if (fGrid && inf.provisional) s += marker(fGrid, domain ? 'mesh limit' : 'grid limit', 1);
     if (inf.modeLimit) s += marker(fOf(inf.modeLimit), `mode limit (${inf.exact} modes)`, 1);
   } else s += `<text x="${(L + W - R) / 2}" y="${(T1 + B1) / 2}" text-anchor="middle">Hit the drum to see which notes it plays</text>`;
-  if (tailX != null) s += `<rect x="${tailX + 3}" y="${T1 + 3}" width="170" height="14" fill="#fffef9" stroke="#7a2438" stroke-width="0.8"/><text x="${tailX + 8}" y="${T1 + 13.5}" fill="#7a2438">provisional Lanczos estimate →</text>`;
+  if (tailX != null) s += `<rect x="${tailX + 3}" y="${T1 + 30}" width="170" height="14" fill="#fffef9" stroke="#7a2438" stroke-width="0.8"/><text x="${tailX + 8}" y="${T1 + 40.5}" fill="#7a2438">provisional Lanczos estimate →</text>`;
   // ---- panel B: ring time, with handles to drag
   s += `<text x="${L}" y="${T2 - 12}">ring time T60 (log scale) · drag the squares to shape the damping</text>`;
   for (const t of [0.01, 0.1, 1, 10]) s += `<line x1="${L}" x2="${W - R}" y1="${syB(t)}" y2="${syB(t)}" stroke="${C.line}" stroke-width="1"/><text x="${L - 5}" y="${syB(t) + 3}" text-anchor="end">${t >= 1 ? t + ' s' : t * 1000 + 'ms'}</text>`;
@@ -1975,10 +1990,10 @@ function unitAt(e) { const r = view.getBoundingClientRect(); return [(e.clientX 
 view.addEventListener('pointerdown', (e) => {
   view.setPointerCapture(e.pointerId); viewDown = true;
   const [ux, uy] = unitAt(e), cx = ux * G, cy = uy * G;
-  if (tab === 'wave') {
+  if (tab === 'drum') {
     if (!nModes) return;
-    const c = projectBump(ux, uy, visSigma(), null); if (!mw) modalWave(0); for (let k = 0; k < nModes; k++) mw.v[k] += c[k];
-    if ($('waveSound').checked) strike(cx, cy, false);
+    if (dview === 'wave') { const c = projectBump(ux, uy, visSigma(), null); if (!mw) modalWave(0); for (let k = 0; k < nModes; k++) mw.v[k] += c[k]; strike(cx, cy, false); }
+    else strike(cx, cy, true);
   } else if (tab === 'heat' && heat) {
     if (heatTool === 'source') {
       let hitI = -1; sources.forEach((s, i) => { if (Math.hypot(s.x - ux, s.y - uy) < 0.035) hitI = i; });
@@ -1986,8 +2001,7 @@ view.addEventListener('pointerdown', (e) => {
       else if (insideAt(ux, uy)) { const s = { x: ux, y: uy, T: +$('srcT').value }; s.nodes = sourceNodes(s); sources.push(s); selSrc = sources.length - 1; dragSrc = selSrc; clampSources(); }
       renderSources(); drawColorbar();
     } else heatPaint(ux, uy);
-  } else if (tab === 'drum') strike(cx, cy, true);
-  else if (tab === 'quantum' && heat && insideAt(ux, uy)) qDrag = { x0: ux, y0: uy, x1: ux, y1: uy };
+  } else if (tab === 'quantum' && heat && insideAt(ux, uy)) qDrag = { x0: ux, y0: uy, x1: ux, y1: uy };
 });
 view.addEventListener('pointermove', (e) => {
   if (viewDown && tab === 'quantum' && qDrag) { const [ux, uy] = unitAt(e); qDrag.x1 = ux; qDrag.y1 = uy; return; }
@@ -1996,6 +2010,12 @@ view.addEventListener('pointermove', (e) => {
   else if (heatTool === 'paint') heatPaint(ux, uy);
 });
 view.addEventListener('pointerup', () => { viewDown = false; dragSrc = -1; if (qDrag) { const [kx, ky] = qDragK(); qEmpty = false; qPacket(qDrag.x0, qDrag.y0, kx, ky); qDrag = null; } });
+function setDrumView(v) {
+  dview = v; $('dvDrum').classList.toggle('on', v === 'drum'); $('dvWave').classList.toggle('on', v === 'wave');
+  $('waveMode').hidden = $('waveReset').hidden = v !== 'wave';
+  $('dvHelp').textContent = v === 'wave' ? 'Live wave motion. Hits add up; ring a single mode, or stop.' : 'Each hit replays slowly, so you can watch the drum ring.';
+}
+$('dvDrum').onclick = () => setDrumView('drum'); $('dvWave').onclick = () => setDrumView('wave');
 $('waveMode').onclick = () => {
   if (!nModes) return;
   mw = { u: new F(nModes), v: new F(nModes) }; mw.u[selected] = 1 / basis.amax[selected]; waveScale = 0;
@@ -2018,11 +2038,14 @@ $('heatMode').onclick = () => { // project the selected mode onto the heat nodes
 document.querySelectorAll('[role="tab"]').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
 function setTab(t) {
   tab = t;
+  const player = t === 'drum';
+  $('stage').classList.toggle('player', player); $('soundPanel').hidden = !player;
+  requestAnimationFrame(() => { drawEditor(); modesDirty = true; if (player) drawSpectrum(); });
   document.querySelectorAll('[role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
   document.querySelectorAll('.tabctl').forEach((d) => { d.hidden = !d.dataset.for.split(' ').includes(t); });
   $('viewBox').hidden = t === 'compare'; $('overlay').textContent = '';
   if (t === 'modes') modesDirty = true;
-  if (t === 'drum') { drawSpectrum(); $('hamOut').textContent = `σ = ${hammerSigma().toFixed(3)}`; }
+  if (t === 'drum') { drawSpectrum(); $('hamOut').textContent = `σ = ${hammerSigma().toFixed(3)}`; setDrumView(dview); }
   if (t === 'compare') renderCompare();
   if (t === 'heat') { drawColorbar(); if (heat && !sources.length && !heat.u.some(v => v !== 0) && nModes) { sources = [{ x: 0, y: 0, T: 100 }]; const [rx, ry] = refPoint(); sources[0].x = rx; sources[0].y = ry; sources[0].nodes = sourceNodes(sources[0]); selSrc = 0; clampSources(); renderSources(); } }
 }
@@ -2033,13 +2056,14 @@ function frame(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   if (C.void && !$('viewBox').hidden) {
     if (tab === 'modes') { if (modesDirty) { renderModes(); modesDirty = false; } }
-    else if (tab === 'wave') {
+    else if (tab === 'drum' && dview === 'wave') {
       fitCanvas(view);
       if (!nModes || resG !== G) blank('computing…');
       else {
         modalWave(dt); const fld = heatField && heatField.length === G * G ? heatField : (heatField = new F(G * G)); modalField(mw.u, fld);
         waveScale = Math.max(waveScale * 0.985, maxAbs(fld), 1e-6);
-        paintField(fld, waveScale, C.div, true, vctx, view); $('overlay').textContent = `wave · built from ${nModes.toLocaleString()} modes`;
+        paintField(fld, waveScale, C.div, true, vctx, view); $('overlay').textContent = `live wave · ${nModes.toLocaleString()} modes`;
+        if (lastHit) { const w = view.width, r1 = Math.max(3, hammerSigma() * w); vctx.lineWidth = 1.5; vctx.strokeStyle = C.ink; vctx.globalAlpha = 0.6; vctx.beginPath(); vctx.arc(lastHit.x * w, lastHit.y * w, r1, 0, 2 * Math.PI); vctx.stroke(); vctx.globalAlpha = 1; }
       }
     } else if (tab === 'heat') {
       fitCanvas(view);
