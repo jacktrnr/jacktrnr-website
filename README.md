@@ -16,6 +16,7 @@ HTTP Basic Authentication to `/stanford`.
 | `turner_resume-oct2026.pdf` | CV (compiled from `turner_resume-oct2026.tex`) |
 | `turner_resume-oct2026.tex` | CV source (LaTeX) |
 | `assets/` | Images |
+| `eigendrum/index.html` | Eigendrum: interactive pixel-domain eigensolver / wave / heat / drum demo (self-contained, served at `/eigendrum/`) |
 | `CNAME` | Custom domain for GitHub Pages |
 
 ## Local preview
