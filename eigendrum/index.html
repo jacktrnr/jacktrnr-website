@@ -43,14 +43,14 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 [hidden] { display: none !important; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
 .wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 16px; }
 .home { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-decoration: none; }
 .home:hover { color: var(--accent); }
 .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
 h1 { font-family: var(--font-display); font-weight: 600; font-size: 34px; letter-spacing: -0.02em; margin: 0; line-height: 1.1; }
 h1 .sub { font-weight: 500; color: var(--muted); font-size: 0.55em; letter-spacing: 0; margin-left: 10px; }
-.lede { margin: 6px 0 0; color: var(--muted); max-width: 66ch; }
+.lede { margin: 8px 0 0; color: var(--muted); max-width: 60ch; font-size: 16px; }
 .status { font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; display: inline-flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
 .status.busy .dot { animation: pulse 0.8s ease-in-out infinite; }
@@ -63,7 +63,7 @@ h2 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin
 .meta { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .toolbar, .tabctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .tabctl.col { flex-direction: column; align-items: stretch; }
-label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
 select, button, input[type="range"] { font: inherit; }
 select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; max-width: 100%; }
 button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; font-weight: 500; }
@@ -84,7 +84,7 @@ canvas.sq { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; borde
 .viewbox { position: relative; }
 .overlay { position: absolute; left: 10px; top: 10px; font-family: var(--font-mono); font-size: 12px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--ink); padding: 3px 8px; border-radius: 4px; pointer-events: none; font-variant-numeric: tabular-nums; max-width: calc(100% - 20px); }
 .overlay:empty { display: none; }
-.hint { margin: 0; color: var(--muted); font-size: 12.5px; }
+.hint { margin: 0; color: var(--muted); font-size: 13.5px; }
 .strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
 .mode { display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); text-align: left; }
 .mode canvas { width: 100%; aspect-ratio: 1; border-radius: 3px; display: block; background: var(--void); }
@@ -109,13 +109,14 @@ th { font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: 0
 td { font-family: var(--font-mono); }
 th:first-child, td:first-child { text-align: left; }
 td.err { color: var(--muted); font-size: 11px; }
-.cmp-intro { margin: 0; color: var(--muted); font-size: 13px; max-width: 72ch; }
+.cmp-intro { margin: 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
 .method { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 16px; }
-.method h3 { font-family: var(--font-display); font-weight: 600; font-size: 15px; margin: 0; }
-.method p, .method li { color: var(--ink); max-width: 66ch; margin: 0; }
+.method h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 0; }
+.method p, .method li { color: var(--ink); max-width: 62ch; margin: 0; line-height: 1.6; }
 .method ol, .method ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
 .eq { font-family: var(--font-mono); font-size: 12.5px; background: var(--bg); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: pre; color: var(--ink); }
-.small { font-size: 12.5px; color: var(--muted); }
+.small { font-size: 13.5px; color: var(--muted); }
+.explain { font-size: 13.5px; color: var(--ink); background: var(--bg); border-radius: 6px; padding: 8px 10px; margin: 0; max-width: 70ch; }
 @media (prefers-reduced-motion: reduce) { .status.busy .dot { animation: none; } }
 </style>
 </head>
@@ -124,8 +125,8 @@ td.err { color: var(--muted); font-size: 11px; }
   <a class="home" href="/">← jacktrnr.com</a>
   <header class="top">
     <div>
-      <h1>Eigendrum<span class="sub">Dirichlet eigenmodes, live</span></h1>
-      <p class="lede">Paint a shape on the pixel grid, or pick one of the exactly solvable and fitted-mesh domains from my 2021 thesis. Watch its modes, strike it as a membrane, heat it with fixed-temperature sources, or play it as a drum.</p>
+      <h1>Eigendrum<span class="sub">what a shape sounds like</span></h1>
+      <p class="lede">Draw a shape, or pick one from my undergraduate thesis. You see how it vibrates right away. Then you can hit it, heat it, or play it as a drum.</p>
     </div>
     <div class="status" id="status" role="status"><span class="dot"></span><span id="statusText">starting solver…</span></div>
   </header>
@@ -136,18 +137,18 @@ td.err { color: var(--muted); font-size: 11px; }
       <div class="toolbar">
         <label for="preset">Shape
           <select id="preset">
-            <optgroup label="Exact eigenfunctions (smooth edges)">
+            <optgroup label="Exact formulas">
               <option value="ex:disk">Disk · Bessel J_m</option>
               <option value="ex:qdisk">Quarter disk · Bessel J_2k</option>
               <option value="ex:semi">Semicircle · Bessel J_k</option>
-              <option value="ex:annulus">Annulus · Bessel J_m, Y_m</option>
+              <option value="ex:annulus">Annulus · Bessel J_m and Y_m</option>
               <option value="ex:equi">Equilateral triangle · Lamé</option>
               <option value="ex:rtiso">Right isosceles triangle</option>
               <option value="ex:hemi">30-60-90 triangle</option>
               <option value="ex:square">Square</option>
               <option value="ex:rect">Rectangle 2:1</option>
             </optgroup>
-            <optgroup label="Thesis domains · fitted-mesh FEM">
+            <optgroup label="From the thesis (mesh)">
               <option value="fem:slant">“Slanted” triangle</option>
               <option value="fem:mslant">“More slanted” triangle</option>
               <option value="fem:tall">Tall isosceles triangle</option>
@@ -158,7 +159,7 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="fem:hole2">Disk with square hole ½</option>
               <option value="fem:hole4">Disk with square hole ¼</option>
             </optgroup>
-            <optgroup label="Pixel shapes · drawable">
+            <optgroup label="Pixel shapes (editable)">
               <option value="px:L" selected>L-shape</option>
               <option value="px:square">Square</option>
               <option value="px:disk">Disk</option>
@@ -187,7 +188,7 @@ td.err { color: var(--muted); font-size: 11px; }
         <button id="clearBtn" class="ghost" type="button">Clear</button>
       </div>
       <canvas id="editor" class="sq" aria-label="Shape editor"></canvas>
-      <p class="hint" id="hint">Drag to paint pixels. Hold Shift or right-click to erase. Separate islands are fine; each one becomes its own drum.</p>
+      <p class="hint" id="hint">Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine.</p>
     </section>
 
     <section class="panel" aria-label="Live view">
@@ -204,11 +205,11 @@ td.err { color: var(--muted); font-size: 11px; }
 
       <div class="tabctl" data-for="modes">
         <label><input type="checkbox" id="nodal" checked> Nodal lines</label>
-        <label><input type="checkbox" id="tones" checked> Play mode tone on click</label>
-        <span class="small">Blue and red are opposite signs. Nodal lines are where the membrane stays still.</span>
+        <label><input type="checkbox" id="tones" checked> Play each mode’s note</label>
+        <span class="small">Red and blue move in opposite directions. The lines are where the drum stays still.</span>
       </div>
       <div class="tabctl" data-for="wave" hidden>
-        <span class="small">Click to strike: u<sub>tt</sub> = Δu.</span>
+        <span class="small">Click to hit the drum.</span>
         <button id="waveMode" type="button">Ring selected mode</button>
         <button id="waveReset" class="ghost" type="button">Stop</button>
         <label><input type="checkbox" id="waveSound" checked> Sound</label>
@@ -224,13 +225,13 @@ td.err { color: var(--muted); font-size: 11px; }
           <button id="heatReset" class="ghost" type="button">Cool</button>
         </div>
         <div class="toolbar">
-          <span class="small" id="srcHelp">Sources hold a fixed temperature. With “Place source” on, click to add a source, then move the T slider to set its temperature. Click a source or its chip to select it, and drag to move it.</span>
+          <span class="small" id="srcHelp">A source keeps its spot at a set temperature. Turn on “Place source” and click to add one. The T slider sets the selected source. Drag a source to move it.</span>
           <div class="chips" id="srcList"></div>
           <button id="srcDelete" class="ghost" type="button" disabled>Delete source</button>
           <button id="srcClear" class="ghost" type="button" disabled>Clear sources</button>
         </div>
         <div class="toolbar">
-          <span class="small">u<sub>t</sub> = Δu · walls held at 0°</span>
+          <span class="small">Edges stay at 0°.</span>
           <span class="colorbar"><span class="meta" id="cbMin">0°</span><canvas id="cbar" width="150" height="10" aria-label="Temperature colour scale"></canvas><span class="meta" id="cbMax">+100°</span></span>
           <span class="meta" id="heatInfo"></span>
         </div>
@@ -239,19 +240,20 @@ td.err { color: var(--muted); font-size: 11px; }
         <div class="toolbar">
           <span class="small">Click the drum to play it.</span>
           <label for="f0">f<sub>1</sub> <input type="range" id="f0" min="55" max="440" value="110"> <output id="f0out" class="meta">110 Hz</output></label>
-          <label for="hammer">Hammer <input type="range" id="hammer" min="15" max="80" value="30"> <output id="hamOut" class="meta">σ = 0.030</output></label>
+          <label for="hammer">Hammer width <input type="range" id="hammer" min="15" max="80" value="30"> <output id="hamOut" class="meta">σ = 0.030</output></label>
           <label for="listener">Listen
-            <select id="listener"><option value="far" selected>Far field (radiated pressure)</option><option value="contact">Contact pickup at strike</option></select>
+            <select id="listener"><option value="far" selected>Across the room</option><option value="contact">Contact mic</option></select>
           </label>
         </div>
-        <div class="legend"><span><i style="background: var(--accent)"></i>exact eigenmodes</span><span><i style="background: var(--muted)"></i>Lanczos–Gauss quadrature of the remaining spectrum</span><span>dashed lines: harmonics n·f₁</span></div>
+        <p class="explain" id="listenHelp"></p>
+        <div class="legend"><span><i style="background: var(--accent)"></i>modes computed exactly</span><span><i style="background: var(--muted)"></i>rest of the spectrum (Lanczos estimate)</span><span>dashed: where a string’s overtones would be</span></div>
         <svg class="spectrum" id="spectrum" viewBox="0 0 600 170" role="img" aria-label="Spectrum of the last strike"></svg>
         <div class="meta" id="specInfo"></div>
       </div>
       <div class="tabctl" data-for="wave drum" hidden>
         <label for="z0">Damping ζ₀ <input type="range" id="z0" min="0" max="40" value="6"></label>
-        <label for="z1">High-mode loss ζ₁ <input type="range" id="z1" min="0" max="40" value="8"></label>
-        <span class="small">u<sub>tt</sub> + 2γ₀u<sub>t</sub> − 2ηΔu<sub>t</sub> = Δu, so mode k decays at γ<sub>k</sub> = ω₁(ζ₀ + ζ₁λ<sub>k</sub>/λ₁).</span>
+        <label for="z1">Extra damping on high notes ζ₁ <input type="range" id="z1" min="0" max="40" value="8"></label>
+        <span class="small">Mode k dies out at rate γ<sub>k</sub> = ω₁(ζ₀ + ζ₁λ<sub>k</sub>/λ₁), so high notes fade first.</span>
       </div>
       <div class="tabctl col" data-for="compare" hidden>
         <p class="cmp-intro" id="cmpIntro"></p>
@@ -271,43 +273,44 @@ td.err { color: var(--muted); font-size: 11px; }
   </main>
 
   <section class="panel" aria-labelledby="modes-h">
-    <div class="panel-head"><h2 id="modes-h">Eigenmodes</h2><span class="meta">−Δψ = λψ in Ω, ψ = 0 on ∂Ω · unit box · click to select</span></div>
+    <div class="panel-head"><h2 id="modes-h">Modes</h2><span class="meta">−Δψ = λψ, ψ = 0 on the edge · click one to select it</span></div>
     <div class="strip" id="strip"></div>
   </section>
 
   <section class="method">
     <div class="panel">
-      <h3>The thesis method: partitioned expansion</h3>
-      <p>Embed the shape in a box S with a known sine basis φ<sub>n</sub>, and put a wall V₀ on every pixel outside Ω′. Chapter 6 precomputes the pixel integrals once, so changing the shape only re-weights them:</p>
-      <div class="eq">h_nm,jk = ∫_{P_jk} φ_n φ_m dr            (M × M × J × K array)
-H_nm    = λ_n δ_nm + V₀ Σ_{P_jk ⊄ Ω′} h_nm,jk
-eig(H)  → λ_k(Ω′),   V₀ → ∞,  M → ∞</div>
-      <p class="small">Cost: an M²·J·K table, a dense M×M eigensolve, an error of order V₀<sup>−1/2</sup>, and round-off when V₀ is large.</p>
+      <h3>What the thesis did</h3>
+      <p>In chapter 6 of my thesis I put the shape inside a box and built its modes out of the box’s sine waves. Everything outside the shape gets a large penalty V₀. The integrals over each pixel only have to be computed once, so changing the shape is cheap.</p>
+      <div class="eq">H_nm = λ_n δ_nm + V₀ · (sum of pixel integrals outside the shape)
+eig(H) → the drum’s modes, as V₀ → ∞</div>
+      <p class="small">The downside is a large table, a dense matrix, and an error that only shrinks like 1/√V₀.</p>
     </div>
     <div class="panel">
-      <h3>Pixel shapes: the V₀ → ∞ limit</h3>
-      <ol>
-        <li><b>Factor the table.</b> φ<sub>n</sub>(x,y) = s<sub>n₁</sub>(x)s<sub>n₂</sub>(y), so h<sub>nm,jk</sub> = a<sub>n₁m₁,j</sub>·b<sub>n₂m₂,k</sub>. The “vs thesis” tab assembles H this way.</li>
-        <li><b>Take V₀ → ∞ exactly.</b> The eigenvalues rise monotonically in V₀, so in the limit the outside pixels simply drop out of the problem.</li>
-        <li><b>Use the pixels as the basis.</b> With M = J·K modes the sine basis on the pixels is a discrete sine transform. Deleting the outside pixels leaves a sparse 5-point Laplacian on Ω′, with the boundary on the pixel edges.</li>
-        <li><b>Solve only for the low end.</b> Chebyshev-filtered subspace iteration, started from a half-resolution solve and warm-restarted while you draw.</li>
-      </ol>
-    </div>
-    <div class="panel">
-      <h3>Smooth domains: no staircase</h3>
+      <h3>Pixel shapes, done faster</h3>
       <ul>
-        <li><b>Round domains</b> use Bessel functions. Disk: J<sub>m</sub>(j<sub>m,n</sub>r/R)·{cos, sin}(mθ). Quarter disk and semicircle: J<sub>ν</sub> sin(νθ) with ν = kπ/α. Annulus: J<sub>m</sub>(kr)Y<sub>m</sub>(ka) − J<sub>m</sub>(ka)Y<sub>m</sub>(kr). That is the Bessel embedding suggested in thesis §3.</li>
-        <li><b>Triangles that tile the plane by reflection</b> (equilateral, right isosceles, 30-60-90) use Lamé's construction: plane waves antisymmetrized over the reflection group, f = Σ<sub>w</sub> det(w) e<sup>i(wk)·x</sup>, with k in the dual lattice. Every eigenvalue is |k|², exactly.</li>
-        <li><b>The other thesis domains</b> (Figs. 2-7, 2-9, 2-10) have no closed form. They use P1 finite elements on a mesh fitted to the true boundary, so the boundary is drawn as it is rather than as pixel steps.</li>
+        <li>Let V₀ go all the way to infinity. The pixels outside the shape then drop out of the problem.</li>
+        <li>Use the pixels themselves as the building blocks. What remains is a sparse matrix with five entries per row.</li>
+        <li>Only ask for the lowest modes, and start from the last answer while you draw. A brush stroke usually takes a few milliseconds.</li>
       </ul>
+      <p class="small">The “vs thesis” tab runs both methods side by side.</p>
+    </div>
+    <div class="panel">
+      <h3>Smooth shapes</h3>
+      <ul>
+        <li>Round shapes use Bessel functions: the disk, quarter disk, semicircle and annulus.</li>
+        <li>Three triangles (equilateral, right isosceles and 30-60-90) have exact answers built from sums of plane waves, a trick that goes back to Lamé.</li>
+        <li>The other shapes from the thesis have no formula. They are solved with finite elements on a mesh that follows the real edge.</li>
+      </ul>
+      <p class="small">Either way the edge is drawn as a smooth curve, not as pixel steps.</p>
     </div>
     <div class="panel">
       <h3>Sound and heat</h3>
       <ul>
-        <li><b>The hammer sets the cutoff.</b> A strike is a Gaussian velocity impulse of width σ, so mode k is excited with weight ∝ e<sup>−λ<sub>k</sub>σ²/2</sup>φ<sub>k</sub>(x₀). The modal sum converges, and σ decides which frequencies are present, not the number of modes on screen.</li>
-        <li><b>Exact domains</b> sum every analytic mode with λ ≤ 18.4/σ², which is thousands of modes.</li>
-        <li><b>Pixel and FEM domains</b> use the computed modes exactly. The rest of the spectrum is captured by a Lanczos–Gauss quadrature of the spectral measure μ(λ) = Σ<sub>k</sub>⟨g, φ<sub>k</sub>⟩⟨q, φ<sub>k</sub>⟩ δ(λ − λ<sub>k</sub>), with g the hammer and q the listener. Each strike costs about 300 sparse matrix-vector products and reproduces every frequency of the discrete operator with the right weight.</li>
-        <li><b>Heat</b> steps u<sub>t</sub> = Δu on the same mesh or grid. Walls are held at 0° and sources at their own T. “Steady state” solves the Laplace problem with conjugate gradients.</li>
+        <li>A hit is a small bump of width σ. A wider hammer reaches fewer high modes, so the hammer width sets how bright the drum sounds.</li>
+        <li>Exact shapes add up every mode the hit reaches, often more than a thousand. Pixel and mesh shapes use the modes on screen plus a Lanczos estimate of the rest, so no frequencies are left out.</li>
+        <li><b>Across the room</b> is what a microphone a few metres away hears. Sound comes from the air the drum pushes, so modes whose up and down halves cancel are almost silent. You hear fewer notes and a sharper attack.</li>
+        <li><b>Contact mic</b> is a sensor stuck to the drum where you hit it. It picks up every mode the hit excites, weighted toward the low ones, so it sounds darker and fuller.</li>
+        <li>For heat, the edges stay at 0° and each source stays at its own temperature. “Steady state” jumps straight to where the temperature settles.</li>
       </ul>
     </div>
   </section>
@@ -1046,15 +1049,15 @@ function drawEditor() {
       for (let t = 0; t < tris.length; t += 3) { const a = tris[t], b = tris[t + 1], c = tris[t + 2]; ectx.moveTo(pos[2 * a] * w, pos[2 * a + 1] * w); ectx.lineTo(pos[2 * b] * w, pos[2 * b + 1] * w); ectx.lineTo(pos[2 * c] * w, pos[2 * c + 1] * w); ectx.closePath(); }
       ectx.stroke(); ectx.globalAlpha = 1;
     }
-    $('shapeMeta').textContent = domain.method === 'exact' ? `exact · ${domain.how}` : domain.nodes ? `P1 FEM · ${domain.nodes.toLocaleString()} nodes · ${domain.how}` : 'meshing…';
-    $('hint').textContent = domain.method === 'exact' ? 'Exact eigenfunctions, drawn with the true boundary. Start painting to convert this shape to pixels and edit it.' : 'The mesh is fitted to the true boundary, so there is no staircase. Start painting to convert this shape to pixels and edit it.';
+    $('shapeMeta').textContent = domain.method === 'exact' ? `exact · ${domain.how}` : domain.nodes ? `mesh · ${domain.nodes.toLocaleString()} points · ${domain.how}` : 'building mesh…';
+    $('hint').textContent = domain.method === 'exact' ? 'These modes come from exact formulas, so the edge is the real curve. Paint on the shape to turn it into pixels you can edit.' : 'Solved on a mesh that follows the real edge (shown above). Paint on the shape to turn it into pixels you can edit.';
     return;
   }
   const cs = w / G; ectx.fillStyle = rgb(C.cell);
   for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) if (mask[y * G + x]) ectx.fillRect(Math.floor(x * cs), Math.floor(y * cs), Math.ceil(cs), Math.ceil(cs));
   if (cs >= 5) { ectx.strokeStyle = C.grid; ectx.lineWidth = 1; ectx.beginPath(); for (let i = 1; i < G; i++) { const p = Math.round(i * cs) + 0.5; ectx.moveTo(p, 0); ectx.lineTo(p, w); ectx.moveTo(0, p); ectx.lineTo(w, p); } ectx.stroke(); }
   $('shapeMeta').textContent = `${mask.reduce((a, b) => a + b, 0).toLocaleString()} px · h = 1/${G}`;
-  $('hint').textContent = 'Drag to paint pixels. Hold Shift or right-click to erase. Separate islands are fine; each one becomes its own drum.';
+  $('hint').textContent = 'Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine.';
 }
 let painting = false, last = null, eraseNow = false;
 function cellAt(c, e) { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * G, (e.clientY - r.top) / r.height * G]; }
@@ -1105,7 +1108,7 @@ function loadSmooth(key) {
   const def = SH.GEOMS[key], g = def.make();
   domain = { key, geom: g, polys: SH.geomPolys(g), how: def.how, method: g.analytic ? 'exact' : 'fem', mesh: null, labels: null, nodes: 0, hmesh: 0.02 };
   pixelReset(); heat = null; cmp = {};
-  smoothReq = ++reqId; setStatus(g.analytic ? 'evaluating exact modes…' : 'meshing and solving FEM…', true);
+  smoothReq = ++reqId; setStatus(g.analytic ? 'computing exact modes…' : 'building mesh and solving…', true);
   worker.postMessage({ type: 'smooth', id: smoothReq, key, K: Math.max(KX, K), R: RS });
   drawEditor(); modesDirty = true;
 }
@@ -1113,7 +1116,7 @@ worker.onmessage = (ev) => {
   const m = ev.data;
   if (m.type === 'eig') {
     busy = false;
-    if (!domain && m.G === G) { setModes(m); setStatus(nModes ? `${m.n.toLocaleString()} px · ${nModes} modes · ${m.ms.toFixed(0)} ms · ${m.it} it (${m.start})` : 'draw a shape', false); }
+    if (!domain && m.G === G) { setModes(m); setStatus(nModes ? `${m.n.toLocaleString()} px · ${nModes} modes · ${m.ms.toFixed(0)} ms` : 'draw a shape', false); }
     else setStatus($('statusText').textContent, false);
     if (pending) { pending = false; requestSolve(true); }
   } else if (m.type === 'smooth') {
@@ -1121,7 +1124,7 @@ worker.onmessage = (ev) => {
     G = m.R; mask = m.mask; img = null; setModes(m);
     domain.mesh = m.mesh; domain.labels = m.labels; domain.nodes = m.nodes; domain.hmesh = m.hmesh;
     heatFromFEM(m.heat); drawEditor();
-    setStatus(`${m.method === 'exact' ? 'exact' : 'P1 FEM, ' + m.nodes.toLocaleString() + ' nodes'} · ${nModes} modes · ${m.ms.toFixed(0)} ms`, false);
+    setStatus(`${m.method === 'exact' ? 'exact' : 'mesh, ' + m.nodes.toLocaleString() + ' points'} · ${nModes} modes · ${m.ms.toFixed(0)} ms`, false);
   } else if (m.type === 'femvals') { if (m.key === cmpKey()) { cmp.fem = m; renderCompare(); } }
   else if (m.type === 'pixvals') { if (m.key === cmpKey()) { cmp.pix = m; renderCompare(); } }
   else if (m.type === 'thesis') { if (m.key === cmpKey()) { cmp.thesis = m; renderCompare(); } $('cmpRun').disabled = false; }
@@ -1394,13 +1397,19 @@ function onStrike(m) {
   lastSpec = { osc, info: m.info, nyq: ctx.sampleRate / 2 }; drawSpectrum();
 }
 $('f0').addEventListener('input', () => { $('f0out').textContent = `${$('f0').value} Hz`; });
+const LISTEN_HELP = {
+  far: 'Across the room: a microphone a few metres away. It hears the air the drum pushes, so modes whose up and down halves cancel are almost silent. Fewer notes, sharper attack.',
+  contact: 'Contact mic: a sensor stuck to the drum where you hit it. It picks up every mode the hit excites, weighted toward the low ones. Darker and fuller.',
+};
+function showListenHelp() { $('listenHelp').textContent = LISTEN_HELP[$('listener').value]; }
+$('listener').addEventListener('change', showListenHelp); showListenHelp();
 $('hammer').addEventListener('input', () => { $('hamOut').textContent = `σ = ${hammerSigma().toFixed(3)}`; });
 
 // ---------- spectrum chart (log frequency, dB) ----------
 const tip = $('tip');
 function drawSpectrum() {
   const svg = $('spectrum'), W = 600, H = 170, L = 34, R = 10, T = 10, B = 26;
-  if (!lastSpec) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">Click the drum to see its spectrum</text>`; $('specInfo').textContent = ''; return; }
+  if (!lastSpec) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">Hit the drum to see which notes it plays</text>`; $('specInfo').textContent = ''; return; }
   const osc = lastSpec.osc.filter(o => o.f < lastSpec.nyq), mag = osc.map(o => Math.hypot(o.as, o.ac)), mx = Math.max(...mag) || 1;
   const f1 = osc.length ? osc[0].f : 100, fLo = f1 * 0.7, fHi = Math.min(lastSpec.nyq, Math.max(f1 * 4, ...osc.map(o => o.f)) * 1.15);
   const sx = (f) => L + Math.log(f / fLo) / Math.log(fHi / fLo) * (W - L - R), base = H - B, sy = (db) => T + (-db / 60) * (base - T);
@@ -1419,12 +1428,12 @@ function drawSpectrum() {
     const r = svg.getBoundingClientRect(), X = (e.clientX - r.left) / r.width * W; let best = null, bd = 1e9;
     for (const q of items) { const d = Math.abs(sx(q.o.f) - X); if (d < bd) { bd = d; best = q; } }
     if (!best || bd > 8) { tip.hidden = true; return; }
-    tip.hidden = false; tip.textContent = `${best.o.exact ? 'eigenmode' : 'quadrature node'}${best.o.mult > 1 ? ' ×' + best.o.mult : ''} · ${best.o.f.toFixed(1)} Hz · ${(best.o.f / f1).toFixed(3)}·f₁ · ${best.db.toFixed(1)} dB`;
+    tip.hidden = false; tip.textContent = `${best.o.exact ? 'mode' : 'estimate'}${best.o.mult > 1 ? ' ×' + best.o.mult : ''} · ${best.o.f.toFixed(1)} Hz · ${(best.o.f / f1).toFixed(3)}·f₁ · ${best.db.toFixed(1)} dB`;
     tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, e.clientX + 12) + 'px'; tip.style.top = (e.clientY - 30) + 'px';
   });
   hit.addEventListener('pointerleave', () => { tip.hidden = true; });
   const inf = lastSpec.info, fmax = f1 * Math.sqrt(inf.lamMax / vals[0]);
-  $('specInfo').textContent = `${inf.exact} exact eigenmodes${inf.tail ? ` + ${inf.tail} quadrature nodes` : ''} · spectrum covered to λ = ${Math.round(inf.lamMax).toLocaleString()} (≈ ${fmax >= 1000 ? (fmax / 1000).toFixed(1) + ' kHz' : fmax.toFixed(0) + ' Hz'}) · hammer σ = ${inf.sigma.toFixed(3)}`;
+  $('specInfo').textContent = `${inf.exact.toLocaleString()} exact modes${inf.tail ? ` and ${inf.tail} estimated` : ''} · up to ${fmax >= 1000 ? (fmax / 1000).toFixed(1) + ' kHz' : fmax.toFixed(0) + ' Hz'} · hammer width ${inf.sigma.toFixed(3)}`;
 }
 
 // ---------- comparison ----------
@@ -1444,20 +1453,20 @@ function renderCompare() {
   const cols = [];
   let ref = null, refName = '';
   if (domain) {
-    $('cmpIntro').textContent = 'Four answers for the same domain: the exact eigenvalues where they exist, P1 finite elements on the fitted mesh, the sparse pixel solver on the shape rasterized at the grid size chosen on the left, and the thesis expansion method on that same raster. On curved or slanted boundaries the pixel staircase limits both raster methods; the fitted mesh does not have that problem.';
+    $('cmpIntro').textContent = 'The same shape solved four ways. “Exact” uses the formula, when there is one. “Mesh” uses finite elements on a mesh that follows the edge. The pixel solver and the thesis method both work on the shape turned into pixels, at the grid size set on the left, so curved edges cost them some accuracy.';
     if (domain.method === 'exact') { ref = Array.from(vals); refName = 'exact'; cols.push({ name: 'Exact', sub: domain.how, v: ref }); }
     const fem = domain.method === 'fem' ? { vals, nodes: domain.nodes, ms: lastMs } : cmp.fem;
     const femV = fem ? Array.from(fem.vals) : null;
-    cols.push({ name: 'Fitted-mesh FEM', sub: fem ? `${fem.nodes.toLocaleString()} nodes · ${fem.ms.toFixed(0)} ms` : 'not run', v: femV });
+    cols.push({ name: 'Mesh', sub: fem ? `${fem.nodes.toLocaleString()} points · ${fem.ms.toFixed(0)} ms` : 'not run', v: femV });
     if (!ref && femV) { ref = femV; refName = 'FEM'; }
     cols.push({ name: `Pixel solver, ${Gp}²`, sub: cmp.pix ? `${cmp.pix.n.toLocaleString()} px · ${cmp.pix.ms.toFixed(0)} ms` : 'not run', v: cmp.pix ? Array.from(cmp.pix.vals) : null });
-    cols.push({ name: `Thesis expansion, ${Gp}²`, sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
+    cols.push({ name: `Thesis method, ${Gp}²`, sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
   } else {
-    $('cmpIntro').textContent = 'Runs the thesis’s partitioned expansion method (Turner 2021, ch. 6) on the same pixel shape: sine basis on the unit box, wall V₀ on the outside pixels, dense M×M eigensolve. Next to it is the sparse solver (V₀ = ∞). For a rectangle of pixels the exact eigenvalues are known, so the table also shows the error.';
+    $('cmpIntro').textContent = 'The method from chapter 6 of my thesis next to the faster solver used on this page, on the same pixels. If the pixels form a rectangle the exact answer is known, so you also see each method’s error.';
     const rect = rectInfo();
-    if (rect) { ref = exactRect(rect, rows); refName = 'exact'; cols.push({ name: 'Exact (pixel rectangle)', sub: 'π²(p²/Lx² + q²/Ly²)', v: ref }); }
-    cols.push({ name: 'Thesis expansion', sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
-    cols.push({ name: 'Sparse solver', sub: `V₀ = ∞ · ${mask.reduce((a, b) => a + b, 0).toLocaleString()} unknowns · ${lastMs.toFixed(0)} ms`, v: Array.from(vals) });
+    if (rect) { ref = exactRect(rect, rows); refName = 'exact'; cols.push({ name: 'Exact', sub: 'pixel rectangle', v: ref }); }
+    cols.push({ name: 'Thesis method', sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
+    cols.push({ name: 'This page', sub: `${mask.reduce((a, b) => a + b, 0).toLocaleString()} px · ${lastMs.toFixed(0)} ms`, v: Array.from(vals) });
   }
   let h = '<thead><tr><th>k</th>';
   for (const c of cols) { const isRef = ref && c.v === ref; h += `<th>${c.name}<br><span style="font-weight:400">${c.sub}</span></th>${ref && !isRef ? `<th>vs ${refName}</th>` : ''}`; }
@@ -1558,7 +1567,7 @@ function frame(now) {
         if (domain) { modalWave(dt); fld = heatField && heatField.length === G * G ? heatField : (heatField = new F(G * G)); modalField(mw.u, fld); }
         else { waveStepFD(G > 80 ? 4 : 3); fld = wu; }
         waveScale = Math.max(waveScale * 0.985, maxAbs(fld), 1e-6);
-        paintField(fld, waveScale, C.div, true, vctx, view); $('overlay').textContent = domain ? `u(x, t) · exact modal evolution, ${nModes} modes` : 'u(x, t) · 5-point leapfrog';
+        paintField(fld, waveScale, C.div, true, vctx, view); $('overlay').textContent = domain ? `wave · ${nModes} exact modes` : 'wave · pixel grid';
       }
     } else if (tab === 'heat') {
       fitCanvas(view);
@@ -1571,8 +1580,8 @@ function frame(now) {
         paintField(heatField, 100, signed ? C.div : C.seq, signed, vctx, view);
         const w = view.width;
         sources.forEach((s, i) => { vctx.beginPath(); vctx.arc(s.x * w, s.y * w, Math.max(5, w / 70), 0, 2 * Math.PI); vctx.lineWidth = i === selSrc ? 3 : 2; vctx.strokeStyle = C.panel; vctx.stroke(); vctx.lineWidth = i === selSrc ? 1.5 : 1; vctx.strokeStyle = C.ink; vctx.stroke(); vctx.fillStyle = C.ink; vctx.font = `${Math.max(10, w / 55)}px ui-monospace, monospace`; vctx.fillText(`S${i + 1} ${fmtT(s.T)}`, s.x * w + Math.max(7, w / 60), s.y * w - Math.max(7, w / 60)); });
-        $('heatInfo').textContent = `t = ${heat.t.toExponential(2)} · slowest decay e^(−λ₁t), λ₁ = ${vals[0] ? vals[0].toFixed(1) : '…'}`;
-        $('overlay').textContent = domain ? 'u(x, t) · P1 FEM on the fitted mesh' : 'u(x, t) · 5-point grid';
+        $('heatInfo').textContent = `time ${heat.t.toExponential(2)}`;
+        $('overlay').textContent = domain ? 'heat · on the mesh' : 'heat · pixel grid';
       }
     } else if (tab === 'drum') {
       fitCanvas(view);
@@ -1583,8 +1592,8 @@ function frame(now) {
         for (let k = 0; k < nModes; k++) { const r = vals[k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r), od = Math.sqrt(Math.max(om * om - g * g, 1e-12)); coef[k] = drum.c[k] * Math.exp(-g * t) * Math.sin(od * t) / od; am += Math.abs(drum.c[k]) / od * maxAbs(vecs, k * G * G); }
         modalField(coef, heatField); paintField(heatField, 0.45 * am || 1, C.div, true, vctx, view);
         const w = view.width; vctx.strokeStyle = C.ink; vctx.lineWidth = 2; vctx.beginPath(); vctx.arc(drum.x * w, drum.y * w, Math.max(5, w / 70), 0, 2 * Math.PI); vctx.stroke();
-        $('overlay').textContent = `exact modal solution (${nModes} modes on screen) · slowed down`;
-      } else blank(nModes ? 'click inside the shape to strike' : 'computing…');
+        $('overlay').textContent = 'slowed down';
+      } else blank(nModes ? 'click the drum to play it' : 'computing…');
     }
   }
   requestAnimationFrame(frame);
