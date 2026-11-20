@@ -76,16 +76,17 @@ h1 { margin: 0 0 10px; color: var(--navy-dark); font: bold 36px/1 var(--font-dis
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .stage { grid-template-areas: "shape view"; }
 .shape-panel { grid-area: shape; } .view-panel { grid-area: view; } .sound-panel { grid-area: sound; }
-.stage.player { grid-template-areas: "view sound" "shape shape"; }
-.stage.player .shape-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); grid-template-areas: "head head" "tools canvas" "help canvas" "hint canvas" ". canvas"; column-gap: 18px; row-gap: 10px; align-items: start; }
+.stage.player { grid-template-areas: "shape shape" "view sound"; }
+.stage.player .shape-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 260px); grid-template-areas: "head head" "tools canvas" "cta canvas" "help canvas" "hint canvas" ". canvas"; column-gap: 18px; row-gap: 10px; align-items: start; }
 .stage.player .shape-panel > .panel-head { grid-area: head; }
 .stage.player .shape-panel > .toolbar { grid-area: tools; }
 .stage.player .shape-panel > #editor { grid-area: canvas; }
 .stage.player .shape-panel > #modesHelp { grid-area: help; }
 .stage.player .shape-panel > #hint { grid-area: hint; }
+.stage.player .shape-panel > #drawCTA { grid-area: cta; }
 @media (max-width: 860px) {
   .stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "view" "shape"; }
-  .stage.player { grid-template-areas: "view" "sound" "shape"; }
+  .stage.player { grid-template-areas: "shape" "view" "sound"; }
   .stage.player .shape-panel { display: flex; }
 }
 .panel { background: var(--panel); border: 1px solid #96a79a; box-shadow: 2px 2px 0 #d5ddd7; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -243,6 +244,7 @@ td.err { color: var(--muted); font-size: 11px; }
         <button id="clearBtn" class="ghost" type="button">Clear</button>
       </div>
       <canvas id="editor" class="sq" aria-label="Shape editor"></canvas>
+      <p class="explain" id="drawCTA"><b>Draw your own drum.</b> Paint or erase on the shape canvas (Shift-drag erases), or pick a shape from the menu. The modes, the sound and the simulations follow whatever you draw.</p>
       <p class="small" id="modesHelp" style="margin:0">“Modes used” is how many modes make up the drum: the mode strip, the drum and wave views, and the sound. Heat and the Schrödinger particle step on the full grid instead.</p>
       <p class="hint" id="hint">Drag to paint. Shift-drag or right-drag to erase. Separate pieces are fine.</p>
     </section>
@@ -1353,7 +1355,7 @@ function drawEditor() {
       ectx.stroke(); ectx.globalAlpha = 1;
     }
     $('shapeMeta').textContent = domain.method === 'exact' ? `exact · ${domain.how}` : domain.nodes ? `mesh · ${domain.nodes.toLocaleString()} points · ${domain.how}` : 'building mesh…';
-    $('hint').textContent = domain.method === 'exact' ? 'These modes come from exact formulas, so the edge is the real curve. Paint on the shape to turn it into pixels you can edit.' : 'Solved on a mesh that follows the real edge (shown above). Paint on the shape to turn it into pixels you can edit.';
+    $('hint').textContent = domain.method === 'exact' ? 'These modes come from exact formulas, so the edge is the real curve. Paint on the shape to turn it into pixels you can edit.' : 'Solved on a mesh that follows the real edge (drawn on the shape canvas). Paint on it to turn it into pixels you can edit.';
     return;
   }
   const cs = w / G; ectx.fillStyle = rgb(C.cell);
