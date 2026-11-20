@@ -290,6 +290,8 @@ td.err { color: var(--muted); font-size: 11px; }
           <label for="qSpeed">Speed <input type="range" id="qSpeed" min="0" max="100" value="45"> <output id="qSpeedOut" class="meta"></output></label>
           <button id="qMode" type="button">Start from selected mode</button>
           <button id="qPause" class="ghost" type="button">Pause</button>
+          <button id="qRestart" class="ghost" type="button">Restart</button>
+          <button id="qClear" class="ghost" type="button">Clear</button>
         </div>
         <div class="toolbar">
           <span class="small">iψ<sub>t</sub> = −Δψ with ψ = 0 on the edge. Stepped in time on the same grid or mesh as the heat, so every mode it can hold is included, not only the ones in the strip.</span>
@@ -1388,7 +1390,7 @@ function drawColorbar() {
 }
 
 // ---------- Schrödinger: iψ_t = Hψ, H = M⁻¹K, Visscher's staggered leapfrog (R_t = H I, I_t = −H R) ----------
-let qs = null, qView = 'abs2', qPaused = false, qDrag = null, qScale = 1, qRe = null, qIm = null;
+let qs = null, qs0 = null, qEmpty = false, qView = 'abs2', qPaused = false, qDrag = null, qScale = 1, qRe = null, qIm = null;
 const qSigma = () => +$('qSigma').value / 1000, qRate = () => 0.0004 * Math.pow(10, +$('qSpeed').value / 50);
 function qShowSliders() { $('qSigmaOut').textContent = qSigma().toFixed(3); $('qSpeedOut').textContent = `${qRate().toPrecision(2)} per s`; }
 function qKMax() { return 0.35 * Math.PI / heat.h; } // keep the packet well inside what the grid/mesh can resolve
@@ -1396,7 +1398,7 @@ function qNormalize(R, I) { let s = 0; for (let i = 0; i < heat.n; i++) s += (R[
 function qPacket(x0, y0, kx, ky) {
   if (!heat) return; const n = heat.n, R = new F(n), I = new F(n), sg = Math.max(qSigma(), 2 * heat.h);
   for (let i = 0; i < n; i++) { const dx = heat.xy[2 * i] - x0, dy = heat.xy[2 * i + 1] - y0, a = Math.exp(-(dx * dx + dy * dy) / (4 * sg * sg)), ph = kx * dx + ky * dy; R[i] = a * Math.cos(ph); I[i] = a * Math.sin(ph); }
-  qNormalize(R, I); qs = { R, I, t: 0, k: Math.hypot(kx, ky) }; qScale = 0;
+  qNormalize(R, I); qs = { R, I, t: 0, k: Math.hypot(kx, ky) }; qs0 = { R: F.from(R), I: F.from(I) }; qScale = 0;
 }
 function qDefaultPoint() { // interior node nearest the centroid of the shape
   let cx = 0, cy = 0; for (let i = 0; i < heat.n; i++) { cx += heat.xy[2 * i]; cy += heat.xy[2 * i + 1]; } cx /= heat.n; cy /= heat.n;
@@ -1406,7 +1408,7 @@ function qDefaultPoint() { // interior node nearest the centroid of the shape
 function qFromMode() {
   if (!heat || !nModes) return; const n = heat.n, R = new F(n), I = new F(n), o = selected * G * G;
   for (let i = 0; i < n; i++) { const px = Math.min(G - 1, Math.floor(heat.xy[2 * i] * G)), py = Math.min(G - 1, Math.floor(heat.xy[2 * i + 1] * G)); R[i] = vecs[o + py * G + px]; }
-  qNormalize(R, I); qs = { R, I, t: 0, k: Math.sqrt(vals[selected]) }; qScale = 0;
+  qNormalize(R, I); qs = { R, I, t: 0, k: Math.sqrt(vals[selected]) }; qs0 = { R: F.from(R), I: F.from(I) }; qScale = 0;
 }
 function qMul(x, y) { const { n, rp, ci, kv, Ml } = heat; for (let i = 0; i < n; i++) { let t = 0; for (let q = rp[i]; q < rp[i + 1]; q++) t += kv[q] * x[ci[q]]; y[i] = t / Ml[i]; } }
 function qStep(dtPhys) {
@@ -1421,12 +1423,15 @@ function qStats() {
 }
 function setQView(v) { qView = v; qScale = 0; for (const [id, k] of [['qvRe', 're'], ['qvAbs', 'abs'], ['qvAbs2', 'abs2']]) $(id).classList.toggle('on', k === v); }
 $('qvRe').onclick = () => setQView('re'); $('qvAbs').onclick = () => setQView('abs'); $('qvAbs2').onclick = () => setQView('abs2');
-$('qMode').onclick = () => qFromMode();
+$('qMode').onclick = () => { qEmpty = false; qFromMode(); };
+$('qRestart').onclick = () => { if (qs0 && heat && qs0.R.length === heat.n) { qEmpty = false; qs = { R: F.from(qs0.R), I: F.from(qs0.I), t: 0, k: 0 }; qScale = 0; } };
+$('qClear').onclick = () => { qEmpty = true; qs = null; qs0 = null; };
 $('qPause').onclick = () => { qPaused = !qPaused; $('qPause').textContent = qPaused ? 'Play' : 'Pause'; };
 $('qSigma').addEventListener('input', qShowSliders); $('qSpeed').addEventListener('input', qShowSliders); qShowSliders();
 function renderQuantum(dt) {
   const w = fitCanvas(view);
   if (!heat || (domain && resG !== G)) { blank('computing…'); return; }
+  if (qEmpty) { blank('click inside the shape to drop a wave packet'); if (qDrag) drawQArrow(w); $('qInfo').textContent = ''; return; }
   if (!qs || qs.R.length !== heat.n) { const [rx, ry] = qDefaultPoint(); qPacket(rx, ry, 0.3 * qKMax(), 0.12 * qKMax()); }
   if (!qPaused) qStep(dt * qRate());
   if (!qRe || qRe.length !== G * G) { qRe = new F(G * G); qIm = new F(G * G); }
@@ -1436,14 +1441,15 @@ function renderQuantum(dt) {
   else for (let p = 0; p < G * G; p++) { const a2 = qRe[p] * qRe[p] + qIm[p] * qIm[p], v = qView === 'abs2' ? a2 : Math.sqrt(a2); qRe[p] = v; if (v > mx) mx = v; }
   qScale = Math.max(qScale * 0.995, mx, 1e-12);
   paintField(qRe, qScale, qView === 're' ? C.div : C.seq, qView === 're', vctx, view);
-  if (qDrag) { // momentum arrow while dragging
-    const x0 = qDrag.x0 * w, y0 = qDrag.y0 * w, x1 = qDrag.x1 * w, y1 = qDrag.y1 * w, a = Math.atan2(y1 - y0, x1 - x0), hl = Math.max(8, w / 50);
-    vctx.strokeStyle = C.ink; vctx.fillStyle = C.ink; vctx.lineWidth = 2; vctx.beginPath(); vctx.moveTo(x0, y0); vctx.lineTo(x1, y1); vctx.stroke();
-    vctx.beginPath(); vctx.moveTo(x1, y1); vctx.lineTo(x1 - hl * Math.cos(a - 0.4), y1 - hl * Math.sin(a - 0.4)); vctx.lineTo(x1 - hl * Math.cos(a + 0.4), y1 - hl * Math.sin(a + 0.4)); vctx.closePath(); vctx.fill();
-  }
+  if (qDrag) drawQArrow(w);
   const st = qStats();
   $('qInfo').textContent = `t = ${qs.t.toExponential(2)} · ∫|ψ|² = ${st.nrm.toFixed(4)} · ⟨E⟩ = ${st.e.toFixed(1)}`;
   $('overlay').textContent = `${qView === 're' ? 'Re ψ' : qView === 'abs' ? '|ψ|' : '|ψ|²'} · ${domain ? 'on the mesh' : 'pixel grid'}`;
+}
+function drawQArrow(w) {
+  const x0 = qDrag.x0 * w, y0 = qDrag.y0 * w, x1 = qDrag.x1 * w, y1 = qDrag.y1 * w, a = Math.atan2(y1 - y0, x1 - x0), hl = Math.max(8, w / 50);
+  vctx.strokeStyle = C.ink; vctx.fillStyle = C.ink; vctx.lineWidth = 2; vctx.beginPath(); vctx.moveTo(x0, y0); vctx.lineTo(x1, y1); vctx.stroke();
+  vctx.beginPath(); vctx.moveTo(x1, y1); vctx.lineTo(x1 - hl * Math.cos(a - 0.4), y1 - hl * Math.sin(a - 0.4)); vctx.lineTo(x1 - hl * Math.cos(a + 0.4), y1 - hl * Math.sin(a + 0.4)); vctx.closePath(); vctx.fill();
 }
 function qDragK() { const k = Math.min(qKMax(), Math.hypot(qDrag.x1 - qDrag.x0, qDrag.y1 - qDrag.y0) * 4 * qKMax()), a = Math.atan2(qDrag.y1 - qDrag.y0, qDrag.x1 - qDrag.x0); return k < 1e-9 ? [0, 0] : [k * Math.cos(a), k * Math.sin(a)]; }
 
@@ -1659,7 +1665,7 @@ view.addEventListener('pointermove', (e) => {
   if (heatTool === 'source' && dragSrc >= 0) { if (insideAt(ux, uy)) { const s = sources[dragSrc]; for (const i of s.nodes) heat.u[i] = 0; s.x = ux; s.y = uy; s.nodes = sourceNodes(s); clampSources(); } }
   else if (heatTool === 'paint') heatPaint(ux, uy);
 });
-view.addEventListener('pointerup', () => { viewDown = false; dragSrc = -1; if (qDrag) { const [kx, ky] = qDragK(); qPacket(qDrag.x0, qDrag.y0, kx, ky); qDrag = null; } });
+view.addEventListener('pointerup', () => { viewDown = false; dragSrc = -1; if (qDrag) { const [kx, ky] = qDragK(); qEmpty = false; qPacket(qDrag.x0, qDrag.y0, kx, ky); qDrag = null; } });
 function bumpFD(field, cx, cy, r, amp) {
   for (let y = Math.max(0, Math.floor(cy - 3 * r)); y <= Math.min(G - 1, Math.ceil(cy + 3 * r)); y++) for (let x = Math.max(0, Math.floor(cx - 3 * r)); x <= Math.min(G - 1, Math.ceil(cx + 3 * r)); x++) {
     const p = y * G + x; if (mask[p]) field[p] += amp * Math.exp(-((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) / (2 * r * r));
