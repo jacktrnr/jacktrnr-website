@@ -2541,7 +2541,7 @@ self.onmessage = (ev) => {
       const d = synthesize(it.osc, sr, it.dur, 1); let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i]));
       const g = pk > 0 ? 0.3 / pk : 0, fi = Math.floor(sr * 0.001), fo = Math.floor(sr * 0.04);
       for (let i = 0; i < d.length; i++) { let w = g; if (i < fi) w *= i / fi; const r = d.length - 1 - i; if (r < fo) w *= r / fo; d[i] *= w; }
-      out.push({ code: it.code, d }); bufs.push(d.buffer);
+      out.push({ code: it.code, v: it.v, d }); bufs.push(d.buffer);
     }
     self.postMessage({ music: true, gen, out }, bufs); return;
   }
@@ -2802,7 +2802,7 @@ const NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A'
 function noteOf(f) { const m = 69 + 12 * Math.log2(f / 440), n = Math.round(m); return { name: NOTE_NAMES[(n % 12 + 12) % 12] + (Math.floor(n / 12) - 1), cents: Math.round((m - n) * 100), snapped: 440 * 2 ** ((n - 69) / 12) }; }
 const music = { open: false, mode: 'modes', bank: 0, sel: null, prog: {}, progKey: '', clips: new Map(), gen: 0, voices: [], scale: 1e-9, bus: null, builtN: 0, lastRebuild: 0, field: null, flash: new Map() };
 const DAMP_TAU = 0.08; // seconds: how fast a hand on the drum quiets it
-music.notes = new Set(); music.damper = false;
+music.notes = new Set(); music.damper = false; music.ver = {}; music.pending = new Set();
 function damper(on) { // hold the space bar (or the button): everything sounding fades fast, like resting a hand on the drum
   if (music.damper === on) return; music.damper = on; $('mmDamp').classList.toggle('on', on);
   const ctx = audio(); if (!ctx) return; const t = ctx.currentTime;
@@ -2832,7 +2832,13 @@ function progLoad() {
   music.needInit = !Object.keys(music.prog).length; progInit();
 }
 function progInit() { // a shape's first strikes: random hits, keys ordered by loudest mode (waits until modes exist)
-  if (!music.needInit || !nModes || !heat || !basis || basis.n !== heat.n) return; music.needInit = false; progLayout(true);
+  if (!music.needInit || !nModes || !heat || !basis || basis.n !== heat.n) return false; music.needInit = false; progLayout(true); return true;
+}
+function progResort() { // same hits, keys re-ordered by loudest mode now that every mode is known
+  music.autoSort = false; const from = MK_CODES.filter(c => music.prog[c]), hits = from.map(c => music.prog[c]), d = hits.map(h => strikeDominant(h) || { f: 0, bright: 0 });
+  const order = hits.map((_, i) => i).sort((a, b) => d[a].f - d[b].f || d[a].bright - d[b].bright), clips = new Map();
+  music.prog = {}; MK_CODES.forEach((c, j) => { if (j >= order.length) return; music.prog[c] = hits[order[j]]; const old = music.clips.get(from[order[j]]); if (old) clips.set(c, old); }); // sounds move with their hits
+  music.clips = clips; progSave();
 }
 function progSave() { try { localStorage.setItem('eigentrace:strikes:v2:' + music.progKey, JSON.stringify(music.prog)); } catch (e) {} }
 function insidePoints(n, rnd) { const pts = []; for (let t = 0; t < 40 * n && pts.length < n; t++) { const x = rnd(), y = rnd(); if (insideAt(x, y)) pts.push([x, y]); } return pts; }
@@ -2846,7 +2852,7 @@ function progLayout(random) { // 45 strikes spread over the shape; "evenly" also
     const hits = pick.map(q => ({ x: q[0], y: q[1], s: sMin * Math.pow(0.07 / sMin, rnd()) }));
     const d = hits.map(h => strikeDominant(h) || { f: 0, bright: 0 });
     const order = hits.map((_, i) => i).sort((a, b) => d[a].f - d[b].f || d[a].bright - d[b].bright); // ties: darker hits first
-    music.prog = {}; MK_CODES.forEach((code, j) => { music.prog[code] = hits[order[j]]; }); progSave(); return;
+    music.prog = {}; MK_CODES.forEach((code, j) => { music.prog[code] = hits[order[j]]; }); music.autoSort = !basisDone(); progSave(); return;
   }
   pick.sort((a, b) => a[1] - b[1]);
   let at = 0; music.prog = {};
@@ -2876,30 +2882,41 @@ function strikeDominant(p) { // { k, f }: the strike's loudest mode, energies of
   p.dom = { k: bk, f: f1 * Math.sqrt(vals[bk] / vals[0]), bright: eTot > 0 ? eF / eTot / (2 * Math.PI) : 0 }; p.domKey = key; return p.dom; // bright: energy-weighted mean pitch
 }
 // ---- building the clips ----
-function musicBuild(codes) {
-  const ctx = audio(); if (!ctx || !nModes || !basis) return;
-  if (music.needInit && music.mode === 'strikes') { progInit(); codes = null; } // modes arrived: make the first random layout now
-  const full = !codes; if (full) { music.gen++; music.clips.clear(); codes = MK_CODES; music.builtN = nModes; music.lastRebuild = performance.now(); }
+const basisDone = () => !!(basis && basis.prog && basis.prog.finished);
+function musicBuild(codes, keep) { // (re)build the sounds for these keys, or for all keys; keep = old sound plays until the new one arrives
+  if (!codes) { music.gen++; music.clips.clear(); music.pending.clear(); } // a full rebuild never keeps another shape's sounds
+  const ctx = audio(); if (!ctx || !nModes || !basis) { musicKeysPaint(); return; }
+  if (music.needInit && music.mode === 'strikes' && progInit()) codes = null; // modes arrived: the first random layout, then build all of it
+  const full = !codes; if (full) { codes = MK_CODES; music.builtN = nModes; music.strikeN = nModes; music.builtFinal = basisDone() ? basis : null; }
   const gen = music.gen, items = [];
   for (const code of codes) {
-    const i = MK_IDX[code], t = musicTarget(i); music.clips.delete(code);
-    if (!t) continue;
-    if (music.mode === 'modes') { const g = modeDecay(t.k); items.push({ code, osc: [{ f: modeFreq(t.k), g, as: 1, ac: 0 }], dur: Math.min(5, Math.max(0.5, T60(g))) }); }
-    else worker.postMessage({ type: 'strike', id: `mus|${gen}|${code}`, x: t.x, y: t.y, sigma: Math.max(t.s, hammerSigma()), listener: $('listener').value, count: Kreq() });
+    const i = MK_IDX[code], t = musicTarget(i), v = music.ver[code] = (music.ver[code] || 0) + 1; if (!keep || !t) music.clips.delete(code);
+    if (!t) { music.pending.delete(code); continue; }
+    music.pending.add(code);
+    if (music.mode === 'modes') { const g = modeDecay(t.k); items.push({ code, v, osc: [{ f: modeFreq(t.k), g, as: 1, ac: 0 }], dur: Math.min(5, Math.max(0.5, T60(g))) }); }
+    else worker.postMessage({ type: 'strike', id: `mus|${gen}|${code}|${v}`, x: t.x, y: t.y, sigma: Math.max(t.s, hammerSigma()), listener: $('listener').value, count: Kreq() });
   }
   for (let j = 0; j < items.length; j += 8) synthW().postMessage({ music: true, gen, items: items.slice(j, j + 8), sr: ctx.sampleRate });
   musicKeysPaint();
 }
+function musicFill() { // only the keys that have something to play but no sound yet (e.g. modes that just arrived); ready keys stay ready
+  const todo = MK_CODES.filter((c, i) => musicTarget(i) && !music.clips.has(c) && !music.pending.has(c)); if (todo.length) musicBuild(todo);
+}
 function musicStrike(m) { // a strike's exact modal weights came back from the solver: turn them into a clip
-  const [, g, code] = m.id.split('|'); if (+g !== music.gen || !music.open) return;
+  const [, g, code, v] = m.id.split('|'); if (+g !== music.gen || +v !== music.ver[code] || !music.open) return;
   const ctx = audio(); if (!ctx) return; const rs = ringScale();
   let osc = toOscillators(m.parts, $('listener').value).filter(o => o.f < ctx.sampleRate / 2 - 50).map(o => ({ ...o, g: o.g / rs }));
+  if (!osc.length) { music.pending.delete(code); return; }
   if (osc.length > 400) osc = osc.sort((a, b) => Math.hypot(b.as, b.ac) - Math.hypot(a.as, a.ac)).slice(0, 400);
-  const g1 = Math.min(...osc.map(o => o.g)); synthW().postMessage({ music: true, gen: music.gen, items: [{ code, osc, dur: Math.min(4, Math.max(1, T60(g1))) }], sr: ctx.sampleRate });
+  const g1 = Math.min(...osc.map(o => o.g)); synthW().postMessage({ music: true, gen: music.gen, items: [{ code, v: +v, osc, dur: Math.min(4, Math.max(1, T60(g1))) }], sr: ctx.sampleRate });
 }
 function musicClips(m) {
   if (m.gen !== music.gen) return; const ctx = audio(); if (!ctx) return;
-  for (const { code, d } of m.out) { const b = ctx.createBuffer(1, d.length, ctx.sampleRate); b.getChannelData(0).set(d); music.clips.set(code, b); const el = music.keyEls && music.keyEls[MK_IDX[code]]; if (el) el.classList.remove('wait'); }
+  for (const { code, v, d } of m.out) {
+    if (v !== music.ver[code]) continue; // a newer sound for this key is on its way
+    const b = ctx.createBuffer(1, d.length, ctx.sampleRate); b.getChannelData(0).set(d); music.clips.set(code, b); music.pending.delete(code);
+    const el = music.keyEls && music.keyEls[MK_IDX[code]]; if (el) el.classList.remove('wait');
+  }
   musicStatus();
 }
 function musicStatus() {
@@ -2995,14 +3012,14 @@ $('mmModes').onclick = () => musicModeSet('modes'); $('mmStrikes').onclick = () 
 const musicBank = (d) => { const total = musicModes().length, nb = Math.max(0, Math.min(Math.ceil(total / MK_N) - 1, music.bank + d)); if (nb !== music.bank) { music.bank = nb; musicKeysPaint(); musicBuild(); } };
 $('mmPrev').onclick = () => musicBank(-1); $('mmNext').onclick = () => musicBank(1);
 $('mmRandom').onclick = () => { progLayout(true); musicKeysPaint(); musicBuild(); };
-$('mmSpread').onclick = () => { progLayout(false); musicKeysPaint(); musicBuild(); };
-$('mmClearStrikes').onclick = () => { music.prog = {}; progSave(); music.sel = null; musicKeysPaint(); musicBuild(); };
+$('mmSpread').onclick = () => { music.autoSort = false; progLayout(false); musicKeysPaint(); musicBuild(); };
+$('mmClearStrikes').onclick = () => { music.autoSort = false; music.prog = {}; progSave(); music.sel = null; musicKeysPaint(); musicBuild(); };
 $('mmClose').onclick = closeMusic;
 $('mmView').addEventListener('pointerdown', (e) => { // strikes: move the selected key's hit to where you click
   if (music.mode !== 'strikes') return; const r = $('mmView').getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
   if (!insideAt(x, y)) return;
   if (!music.sel) { music.sel = MK_CODES.find(c => !music.prog[c]) || MK_CODES[0]; }
-  music.prog[music.sel] = { x, y, s: Math.max(+$('mmHammer').value / 1000, hammerSigma()) }; progSave(); musicKeysPaint(); musicBuild([music.sel]);
+  music.autoSort = false; music.prog[music.sel] = { x, y, s: Math.max(+$('mmHammer').value / 1000, hammerSigma()) }; progSave(); musicKeysPaint(); musicBuild([music.sel]);
 });
 // While the panel is open it takes the keyboard first, so keys never leak to the page behind it.
 window.addEventListener('keydown', (e) => {
@@ -3023,7 +3040,15 @@ for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('mmDamp').add
 function renderMusic() {
   const cv = $('mmView'), w = fitCanvas(cv), x = cv.getContext('2d');
   if (!nModes || resG !== G || !heat) { x.fillStyle = rgb(C.void); x.fillRect(0, 0, w, w); return; }
-  if (nModes !== music.builtN && performance.now() - music.lastRebuild > (basis.prog && basis.prog.finished ? 0 : 2500)) { musicKeysPaint(); musicBuild(); } // more modes arrived
+  if (music.needInit && music.mode === 'strikes' && nModes) musicBuild(); // the first modes are here: lay out the first strikes now
+  if (nModes !== music.builtN) { // more modes arrived
+    music.builtN = nModes; const tp = performance.now(); if (tp - (music.lastPaint || 0) > 1500) { music.lastPaint = tp; musicKeysPaint(); } musicFill();
+    // strikes are sums over modes: as modes keep arriving, quietly refresh them (old sound plays until the richer one lands)
+    if (music.mode === 'strikes' && !basisDone() && !music.pending.size && music.clips.size && nModes >= 1.5 * (music.strikeN || 0)) { music.strikeN = nModes; musicBuild(MK_CODES.slice(), true); }
+  }
+  if (basisDone() && music.builtFinal !== basis) { // the modes are complete: strikes get every mode now (and an automatic layout is re-sorted with them)
+    music.builtFinal = basis; if (music.mode === 'strikes') { if (music.autoSort) progResort(); musicBuild(MK_CODES.slice(), true); } else musicKeysPaint();
+  }
   const now = performance.now(), { z0, z1 } = damping(), w1 = 2 * Math.PI * 0.9, rs = ringScale(), coef = new F(nModes);
   const dtR = Math.min(0.1, (now - (music.lastT || now)) / 1000); music.lastT = now;
   if (music.damper) for (const v of music.voices) v.held = (v.held || 0) + dtR;
