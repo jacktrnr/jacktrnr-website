@@ -177,13 +177,15 @@ td.err { color: var(--muted); font-size: 11px; }
     <a href="/">Home</a>
     <a href="/research.html">Research</a>
     <a href="/#publications">Publications</a>
-    <a href="/eigendrum/" aria-current="page">Eigendrum</a>
+    <a href="/eigendrum/#drum" data-route="drum">Eigendrum</a>
+    <a href="/eigendrum/#billiards" data-route="billiards">Dynamical billiards</a>
+    <a href="/eigendrum/#quantum" data-route="quantum">Quantum billiards</a>
   </nav>
 </header>
 <div class="wrap">
   <header class="top">
     <div>
-      <p class="eyebrow">Interactive · from my undergrad thesis</p>
+      <p class="eyebrow" id="eyebrow">Interactive · from my undergrad thesis</p>
       <h1>Eigendrum</h1>
       <p class="lede">Draw a shape, or pick one from my undergrad thesis. You see how it vibrates right away. Then you can hit it, heat it, play it as a drum, or drop a quantum particle inside and watch it bounce around: a quantum billiard, solved with the Schrödinger equation.</p>
     </div>
@@ -2004,7 +2006,7 @@ function setBillMode(m) {
   if (m === 'c') { balls = []; bBounces = 0; birkClear(); }
 }
 $('cFast').onclick = () => { const segs = billSegments(); if (!segs) return; for (const b of balls) { const target = bBounces + 2000; let guard = 0; while (bBounces < target && guard++ < 40) { stepBall(b, 1e9, segs); keepInside(b); } } };
-$('bmQ').onclick = () => setBillMode('q'); $('bmC').onclick = () => setBillMode('c');
+$('bmQ').onclick = () => { setBillMode('q'); syncHash(); }; $('bmC').onclick = () => { setBillMode('c'); syncHash(); };
 $('cSpeed').addEventListener('input', cShowSliders); $('cTrail').addEventListener('input', cShowSliders); cShowSliders();
 function renderQuantum(dt) {
   if (bmode === 'c') { renderClassical(dt); return; }
@@ -2337,6 +2339,7 @@ function setTab(t) {
   const SIDE = { drum: ['Sound', 'what you hear from the last hit'], modes: ['Mode', 'the selected vibration pattern'], heat: ['Heat', 'temperature, edges held at 0°'], quantum: ['Quantum billiard', 'a particle trapped in the shape'], compare: ['vs undergrad thesis', 'the same shape solved four ways'] };
   $('side-h').textContent = SIDE[t][0]; $('sideSub').textContent = SIDE[t][1];
   if (t === 'quantum') setBillMode(bmode);
+  if (typeof syncHash === 'function') syncHash();
   document.querySelectorAll('[data-side]').forEach((d) => { d.hidden = d.dataset.side !== t; });
   modesDirty = true; if (t === 'drum') drawSpectrum(); if (t === 'modes' || t === 'compare') showModeInfo();
   document.querySelectorAll('[role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
@@ -2426,8 +2429,33 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors
 new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 readColors();
-loadSmooth('horn');
-setTab('drum');
+const ROUTES = {
+  drum: { tab: 'drum', shape: 'fem:horn', eyebrow: 'Interactive · from my undergrad thesis', title: 'Eigendrum — Jackson Turner' },
+  billiards: { tab: 'quantum', bill: 'c', shape: 'fem:mushroom', eyebrow: 'Interactive · dynamical billiards', title: 'Dynamical billiards · Eigendrum — Jackson Turner' },
+  quantum: { tab: 'quantum', bill: 'q', shape: 'fem:stadium', eyebrow: 'Interactive · quantum billiards', title: 'Quantum billiards · Eigendrum — Jackson Turner' },
+  modes: { tab: 'modes' }, heat: { tab: 'heat' }, compare: { tab: 'compare' },
+};
+let routing = false;
+function routeName() { if (tab === 'quantum') return bmode === 'c' ? 'billiards' : 'quantum'; return tab; }
+function showRoute(name) {
+  const r = ROUTES[name] || {};
+  $('eyebrow').textContent = r.eyebrow || ROUTES.drum.eyebrow; document.title = r.title || ROUTES.drum.title;
+  document.querySelectorAll('.site-nav [data-route]').forEach((a) => { if (a.dataset.route === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+}
+function syncHash() { // keep the address in step with the view, without reloading anything
+  if (routing) return; const name = routeName();
+  if (location.hash.slice(1) !== name) history.replaceState(null, '', '#' + name);
+  showRoute(name);
+}
+function applyRoute(loadShape) {
+  const name = ROUTES[location.hash.slice(1)] ? location.hash.slice(1) : 'billiards', r = ROUTES[name];
+  routing = true;
+  if (loadShape && r.shape) { $('preset').value = r.shape; const [kind, key] = r.shape.split(':'); if (kind === 'px') applyPreset(key); else loadSmooth(key); }
+  setTab(r.tab); if (r.bill) setBillMode(r.bill);
+  routing = false; syncHash();
+}
+window.addEventListener('hashchange', () => applyRoute(true));
+applyRoute(true);
 drawSpectrum(); showDamping();
 requestAnimationFrame(frame);
 })();
