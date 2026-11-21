@@ -93,7 +93,8 @@ h1 { margin: 0 0 10px; color: var(--navy-dark); font: bold 36px/1 var(--font-dis
   .tabs button { padding: 6px 9px; }
   label:has(> #preset) { display: flex; width: 100%; }
   #preset { flex: 1 1 auto; min-width: 0; width: 100%; }
-  label:has(> #dmShape) { display: flex; width: 100%; }
+  label:has(> #dmShape), label:has(> #mmShape) { display: flex; width: 100%; }
+  #mmShape { flex: 1 1 auto; min-width: 0; width: 100%; }
   #dmShape { flex: 1 1 auto; min-width: 0; width: 100%; }
 }
 /* (a .panel rule used to sit here; a stray brace above it meant browsers always dropped it, and the layout was built without it) */
@@ -221,6 +222,7 @@ td.err { color: var(--muted); font-size: 11px; }
     <a href="/eigentrace/#drum" data-route="drum">Eigentrace</a>
     <a href="/eigentrace/#billiards" data-route="billiards">Dynamical billiards</a>
     <a href="/eigentrace/#quantum" data-route="quantum">Quantum billiards</a>
+    <a href="/eigentrace/#synth" data-route="synth">Eigensynth</a>
   </nav>
 </header>
 <div class="wrap">
@@ -319,6 +321,7 @@ td.err { color: var(--muted); font-size: 11px; }
           <button role="tab" data-tab="modes" aria-selected="false" type="button">Modes</button>
           <button role="tab" data-tab="heat" aria-selected="false" type="button">Heat</button>
           <button role="tab" data-tab="quantum" aria-selected="false" type="button">Billiard</button>
+          <button role="tab" data-tab="synth" aria-selected="false" type="button">Eigensynth</button>
         </div>
       </div>
       <div class="viewbox" id="viewBox"><canvas id="view" class="sq" aria-label="Field view"></canvas><div class="overlay" id="overlay"></div>
@@ -332,7 +335,7 @@ td.err { color: var(--muted); font-size: 11px; }
       </div>
       <div class="tabctl" data-for="drum">
         <div class="seg" role="group" aria-label="Drum view">
-          <button id="dvDrum" class="on" type="button">Drum</button><button id="dvWave" type="button">Wave</button><button id="dvMusic" type="button">Music</button>
+          <button id="dvDrum" class="on" type="button">Drum</button><button id="dvWave" type="button">Wave</button>
         </div>
         <span class="small" id="dvHelp">Each hit replays slowly, so you can watch the drum ring.</span>
         <button id="waveMode" type="button" hidden>Ring selected mode</button>
@@ -520,7 +523,7 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
         <li><b>Across the room</b> is what a microphone a few meters away hears. Sound comes from the air the drum pushes, so modes whose up and down halves cancel are almost silent. You hear fewer notes and a sharper attack.</li>
         <li><b>Contact mic</b> is a sensor stuck to the drum where you hit it. It picks up every mode the hit excites, weighted toward the low ones, so it sounds darker and fuller.</li>
         <li>For heat, the edges stay at 0° and each source stays at its own temperature. “Steady state” jumps straight to where the temperature settles.</li>
-        <li><b>Music</b> (on the Drum tab) turns the shape into a keyboard instrument. Each key plays one of its modes, or a hit at a spot you choose. Every key's sound is built in advance, so playing is instant.</li>
+        <li><b>Eigensynth</b> (its own tab) turns the shape into a keyboard instrument. Each key plays one of its modes, or a hit at a spot you choose. Every key's sound is built in advance, so playing is instant.</li>
         <li>The Schrödinger tab solves iψ<sub>t</sub> = −Δψ for a particle trapped in the shape. A wave packet moves, spreads, bounces off the edges and interferes with itself. A single mode just turns its phase, so its |ψ|² never changes.</li>
       </ul>
     </div>
@@ -544,8 +547,10 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
 </div>
 <div class="drawmodal musicmodal" id="musicModal" role="dialog" aria-modal="true" aria-labelledby="mm-h" hidden>
   <div class="dm-bar mm-bar">
-    <h2 id="mm-h">Eigentrace · Music</h2>
+    <h2 id="mm-h">Eigensynth</h2>
     <div class="seg" role="group" aria-label="What the keys play"><button id="mmModes" class="on" type="button">Eigenmodes</button><button id="mmStrikes" type="button">Strikes</button></div>
+    <label for="mmShape">Shape <select id="mmShape"></select></label>
+    <button id="mmDraw" type="button">✎ Draw</button>
     <span class="small" id="mmHint">Play with your keyboard, or tap the keys.</span>
     <button id="mmClose" type="button" aria-label="Close (Esc)">✕</button>
   </div>
@@ -1579,7 +1584,8 @@ function openDraw() {
 function closeDraw() {
   if ($('drawModal').hidden) return;
   const home = $('editorHome'); home.parentNode.insertBefore(ed, home);
-  $('drawModal').hidden = true; document.body.style.overflow = ''; requestAnimationFrame(() => { drawEditor(); modesDirty = true; }); $('openDraw').focus();
+  $('drawModal').hidden = true; $('drawModal').style.zIndex = ''; requestAnimationFrame(() => { drawEditor(); modesDirty = true; });
+  if (music.open) { document.body.style.overflow = 'hidden'; $('mmDraw').focus(); } else { document.body.style.overflow = ''; $('openDraw').focus(); }
 }
 function syncTools() { for (const [a, b] of [['toolDraw', 'dmDraw'], ['toolErase', 'dmErase']]) { const on = (a === 'toolDraw') === (tool === 'draw'); $(a).classList.toggle('on', on); $(b).classList.toggle('on', on); } }
 $('openDraw').onclick = openDraw; $('dmDone').onclick = closeDraw;
@@ -2749,7 +2755,7 @@ function setDrumView(v) {
   $('waveMode').hidden = $('waveReset').hidden = v !== 'wave';
   $('dvHelp').textContent = v === 'wave' ? 'Live wave motion. Hits add up; ring a single mode, or stop.' : 'Each hit replays slowly, so you can watch the drum ring.';
 }
-$('dvDrum').onclick = () => setDrumView('drum'); $('dvWave').onclick = () => setDrumView('wave'); $('dvMusic').onclick = () => openMusic();
+$('dvDrum').onclick = () => setDrumView('drum'); $('dvWave').onclick = () => setDrumView('wave');
 $('waveMode').onclick = () => {
   if (!nModes) return;
   mw = { u: new F(nModes), v: new F(nModes) }; mw.u[selected] = 1 / basis.amax[selected]; waveScale = 0;
@@ -2771,6 +2777,7 @@ $('heatMode').onclick = () => { // project the selected mode onto the heat nodes
 // ---------- tabs ----------
 document.querySelectorAll('[role="tab"]').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
 function setTab(t) {
+  if (t === 'synth') { openMusic(); return; } // Eigensynth is a full-screen panel over whatever tab was showing
   tab = t;
   const SIDE = { drum: ['Sound', 'what you hear from the last hit'], modes: ['Mode', 'the selected vibration pattern'], heat: ['Heat', 'temperature, edges held at 0°'], quantum: ['Quantum billiard', 'a particle trapped in the shape'] };
   $('side-h').textContent = SIDE[t][0]; $('sideSub').textContent = SIDE[t][1];
@@ -2991,12 +2998,20 @@ function openMusic() {
   audio(); progLoad(); if (!music.keyEls) musicKeysBuild();
   $('mmF0').value = $('f0').value; showMusicSliders();
   $('musicModal').hidden = false; document.body.style.overflow = 'hidden'; music.open = true; music.voices = [];
-  musicModeSet(music.mode); $('mmClose').focus();
+  music.basisSeen = basis; syncSynthShape();
+  document.querySelectorAll('[role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === 'synth')));
+  musicModeSet(music.mode); $('mmClose').focus(); syncHash();
 }
+function syncSynthShape() { const sel = $('mmShape'); if (!sel.options.length) sel.innerHTML = $('preset').innerHTML; sel.value = $('preset').value; }
 function closeMusic() {
   if (!music.open) return; damper(false); music.open = false; music.voices = [];
-  $('musicModal').hidden = true; document.body.style.overflow = ''; modesDirty = true; $('dvMusic').focus();
+  $('musicModal').hidden = true; document.body.style.overflow = ''; modesDirty = true;
+  document.querySelectorAll('[role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  syncHash(); const tb = document.querySelector('[data-tab="synth"]'); if (tb) tb.focus();
 }
+// changing the shape from inside Eigensynth: the menu, or Draw (the drawing window opens on top; Done comes back here)
+$('mmShape').onchange = () => { $('preset').value = $('mmShape').value; $('preset').onchange(); };
+$('mmDraw').onclick = () => { $('drawModal').style.zIndex = '42'; openDraw(); };
 function showMusicSliders() {
   $('mmF0out').textContent = `${$('mmF0').value} Hz`; $('mmRingOut').textContent = `×${ringScale().toFixed(2)}`;
   $('mmVolOut').textContent = `${$('mmVol').value}%`; $('mmHammerOut').textContent = `σ = ${(Math.max(+$('mmHammer').value / 1000, hammerSigma())).toFixed(3)}`;
@@ -3023,7 +3038,7 @@ $('mmView').addEventListener('pointerdown', (e) => { // strikes: move the select
 });
 // While the panel is open it takes the keyboard first, so keys never leak to the page behind it.
 window.addEventListener('keydown', (e) => {
-  if (!music.open) return;
+  if (!music.open || !$('drawModal').hidden) return;
   if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMusic(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const i = MK_IDX[e.code];
@@ -3032,7 +3047,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) damper(true); return; }
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); }
 }, true);
-window.addEventListener('keyup', (e) => { if (music.open && e.code === 'Space') { e.preventDefault(); e.stopPropagation(); damper(false); } }, true);
+window.addEventListener('keyup', (e) => { if (music.open && $('drawModal').hidden && e.code === 'Space') { e.preventDefault(); e.stopPropagation(); damper(false); } }, true);
 window.addEventListener('blur', () => damper(false));
 $('mmDamp').addEventListener('pointerdown', (e) => { e.preventDefault(); damper(true); });
 for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('mmDamp').addEventListener(ev, () => damper(false));
@@ -3040,6 +3055,7 @@ for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('mmDamp').add
 function renderMusic() {
   const cv = $('mmView'), w = fitCanvas(cv), x = cv.getContext('2d');
   if (!nModes || resG !== G || !heat) { x.fillStyle = rgb(C.void); x.fillRect(0, 0, w, w); return; }
+  if (basis !== music.basisSeen && $('drawModal').hidden) { music.basisSeen = basis; syncSynthShape(); music.bank = 0; music.voices = []; music.scale = 1e-9; progLoad(); musicBuild(); } // a new shape
   if (music.needInit && music.mode === 'strikes' && nModes) musicBuild(); // the first modes are here: lay out the first strikes now
   if (nModes !== music.builtN) { // more modes arrived
     music.builtN = nModes; const tp = performance.now(); if (tp - (music.lastPaint || 0) > 1500) { music.lastPaint = tp; musicKeysPaint(); } musicFill();
@@ -3157,11 +3173,12 @@ readColors();
 const ROUTES = {
   drum: { tab: 'drum', shape: 'fem:horn', eyebrow: 'Interactive · from my undergrad thesis', title: 'Eigentrace — Jackson Turner' },
   billiards: { tab: 'quantum', bill: 'c', shape: 'fem:mushroom', eyebrow: 'Interactive · dynamical billiards', title: 'Dynamical billiards · Eigentrace — Jackson Turner' },
+  synth: { tab: 'drum', synth: true, shape: 'fem:horn', eyebrow: 'Interactive · eigensynth', title: 'Eigensynth · Eigentrace — Jackson Turner' },
   quantum: { tab: 'quantum', bill: 'q', shape: 'ex:equi', eyebrow: 'Interactive · quantum billiards', title: 'Quantum billiards · Eigentrace — Jackson Turner' },
   modes: { tab: 'modes', shape: 'fem:horn' }, heat: { tab: 'heat' }, compare: { tab: 'modes' }, // (old #compare links open the Modes tab)
 };
 let routing = false;
-function routeName() { if (tab === 'quantum') return bmode === 'c' ? 'billiards' : 'quantum'; return tab; }
+function routeName() { if (music.open) return 'synth'; if (tab === 'quantum') return bmode === 'c' ? 'billiards' : 'quantum'; return tab; }
 function showRoute(name) {
   const r = ROUTES[name] || {};
   $('eyebrow').textContent = r.eyebrow || ROUTES.drum.eyebrow; document.title = r.title || ROUTES.drum.title;
@@ -3178,6 +3195,7 @@ function applyRoute(loadShape) {
   const shape = r.shape || (basis || domain ? null : ROUTES.drum.shape); // #modes and #heat keep the current shape, or start from the default one
   if (loadShape && shape) { $('preset').value = shape; const [kind, key] = shape.split(':'); if (kind === 'px') applyPreset(key); else loadSmooth(key); }
   setTab(r.tab); if (r.bill) setBillMode(r.bill);
+  if (r.synth) { music.mode = 'modes'; openMusic(); } else if (music.open) closeMusic();
   routing = false; syncHash();
 }
 window.addEventListener('hashchange', () => applyRoute(true));

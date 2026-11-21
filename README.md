@@ -16,7 +16,7 @@ HTTP Basic Authentication to `/stanford`.
 | `turner_resume-oct2026.pdf` | CV (compiled from `turner_resume-oct2026.tex`) |
 | `turner_resume-oct2026.tex` | CV source (LaTeX) |
 | `assets/` | Images |
-| `eigentrace/index.html` | Eigentrace: draw a shape and see its eigenmodes; drum, music, heat, classical and quantum billiards (self-contained, served at `/eigentrace/`; `/eigendrum/` redirects here) |
+| `eigentrace/index.html` | Eigentrace: draw a shape and see its eigenmodes; drum, Eigensynth (play the shape like a keyboard), heat, classical and quantum billiards (self-contained, served at `/eigentrace/`; `/eigendrum/` redirects here) |
 | `CNAME` | Custom domain for GitHub Pages |
 
 ## Local preview
