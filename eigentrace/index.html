@@ -2829,13 +2829,38 @@ function progLayout(random) { // 45 strikes spread over the shape; "evenly" also
   const pick = [cand[0]], dmin = cand.map(c => Math.hypot(c[0] - cand[0][0], c[1] - cand[0][1]));
   while (pick.length < MK_N) { let bi = 0; for (let i = 1; i < cand.length; i++) if (dmin[i] > dmin[bi]) bi = i; const q = cand[bi]; pick.push(q); for (let i = 0; i < cand.length; i++) dmin[i] = Math.min(dmin[i], Math.hypot(cand[i][0] - q[0], cand[i][1] - q[1])); }
   const sMin = Math.max(hammerSigma() * 0.999, 0.015), sNow = Math.max(+$('mmHammer').value / 1000, sMin);
-  if (!random) pick.sort((a, b) => a[1] - b[1]);
+  if (random) { // random hits and hammers, then keys in ascending order of each hit's dominant mode (number row lowest)
+    const hits = pick.map(q => ({ x: q[0], y: q[1], s: sMin * Math.pow(0.07 / sMin, rnd()) }));
+    const d = hits.map(h => strikeDominant(h) || { f: 0, bright: 0 });
+    const order = hits.map((_, i) => i).sort((a, b) => d[a].f - d[b].f || d[a].bright - d[b].bright); // ties: darker hits first
+    music.prog = {}; MK_CODES.forEach((code, j) => { music.prog[code] = hits[order[j]]; }); progSave(); return;
+  }
+  pick.sort((a, b) => a[1] - b[1]);
   let at = 0; music.prog = {};
   MK_ROWS.forEach((row) => {
     const band = pick.slice(at, at + row.length); at += row.length; if (!random) band.sort((a, b) => a[0] - b[0]);
     row.forEach((code, j) => { const q = band[j]; if (q) music.prog[code] = { x: q[0], y: q[1], s: random ? sMin * Math.pow(0.07 / sMin, rnd()) : sNow }; });
   });
   progSave();
+}
+let farW = null;
+function farWeights() { // ∫φ_k for each mode: how strongly a far-away listener hears it
+  if (farW && farW.n === nModes && farW.basis === basis) return farW.w;
+  const n = basis.n, M = heat.Ml, w = new F(nModes);
+  for (let k = 0; k < nModes; k++) { const y = modeNode(k); let t = 0; for (let i = 0; i < n; i++) t += M[i] * y[i]; w[k] = t; }
+  farW = { n: nModes, basis, w }; return w;
+}
+function strikeDominant(p) { // { k, f }: the strike's loudest mode, energies of equal pitches added together
+  if (!nModes || !heat || basis.n !== heat.n) return null;
+  const key = [nModes, $('listener').value, $('f0').value, $('mmRing').value, $('z0').value, $('z1').value].join('|'); if (p.dom && p.domKey === key) return p.dom;
+  const c = projectBump(p.x, p.y, Math.max(p.s, hammerSigma()), null), far = $('listener').value === 'far', w = far ? farWeights() : null;
+  const { z0, z1 } = damping(), f1 = +$('f0').value, w1 = 2 * Math.PI * f1, rs = ringScale(); let best = -1, bk = 0, acc = 0, eTot = 0, eF = 0;
+  for (let k = 0; k < nModes; k++) {
+    const A = far ? c[k] * w[k] : c[k] * c[k], r = vals[k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r) / rs, amp = far ? Math.abs(A) * om : Math.abs(A) / om;
+    const e = amp * amp / (2 * g); acc += e; eTot += e; eF += e * om;
+    if (!(k + 1 < nModes && Math.abs(vals[k + 1] - vals[k]) <= 1e-6 * vals[k])) { if (acc > best) { best = acc; bk = k; } acc = 0; }
+  }
+  p.dom = { k: bk, f: f1 * Math.sqrt(vals[bk] / vals[0]), bright: eTot > 0 ? eF / eTot / (2 * Math.PI) : 0 }; p.domKey = key; return p.dom; // bright: energy-weighted mean pitch
 }
 // ---- building the clips ----
 function musicBuild(codes) {
@@ -2909,7 +2934,10 @@ function musicKeysPaint() {
     } else {
       const w = cv.width; cx.fillStyle = rgb(C.void); cx.fillRect(0, 0, w, w); cx.fillStyle = '#fffef9'; billPath(cx, w); cx.fill('evenodd'); cx.strokeStyle = C.ink; cx.lineWidth = 1; billPath(cx, w); cx.stroke();
       cx.fillStyle = '#7a2438'; cx.beginPath(); cx.arc(t.x * w, t.y * w, Math.max(3, t.s * w * 1.5), 0, 2 * Math.PI); cx.fill();
-      el.querySelector('em').textContent = `σ ${t.s.toFixed(3)}`; el.setAttribute('aria-label', `Key ${mkLabel(code)}: strike at ${t.x.toFixed(2)}, ${t.y.toFixed(2)}`); el.title = `strike at (${t.x.toFixed(2)}, ${t.y.toFixed(2)}), hammer σ = ${t.s.toFixed(3)}`;
+      const d = strikeDominant(t), n = d ? noteOf(d.f) : null;
+      el.querySelector('em').textContent = n ? n.name : `σ ${t.s.toFixed(3)}`;
+      el.setAttribute('aria-label', `Key ${mkLabel(code)}: strike at ${t.x.toFixed(2)}, ${t.y.toFixed(2)}${n ? `, loudest mode ${d.k + 1}, ${n.name}` : ''}`);
+      el.title = `strike at (${t.x.toFixed(2)}, ${t.y.toFixed(2)}), hammer σ = ${t.s.toFixed(3)}${d ? ` · loudest mode ψ${d.k + 1}, ${d.f.toFixed(1)} Hz (${n.name})` : ''}`;
     }
   }
   const total = list ? list.length : 0, b0 = music.bank * MK_N;
@@ -2922,7 +2950,7 @@ function musicModeSet(m) {
   $('mmModeCtl').hidden = m !== 'modes'; $('mmStrikeCtl').hidden = m !== 'strikes'; $('mmView').classList.toggle('picking', m === 'strikes');
   $('mmHelp').textContent = m === 'modes'
     ? 'Each key plays one mode of the shape: the number row has the lowest notes, then the Q, A and Z rows. ← and → (or ◀ ▶) move to the next 45 modes. Drum modes are not in tune with each other; "Snap to piano notes" rounds each to the nearest note (not physical).'
-    : 'Each key hits the drum at its own spot, with its own hammer. Pick a key (click it), then click the drum to move its hit there. Randomize scatters all 45 hits with different hammers. Your keys are saved for this shape.';
+    : 'Each key hits the drum at its own spot, with its own hammer. Pick a key (click it), then click the drum to move its hit there. Randomize scatters all 45 hits with different hammers and puts them in order of pitch: each key is ranked by its hit’s loudest mode, lowest on the number row (hits with the same loudest mode go from darker to brighter). Your keys are saved for this shape.';
   if (m === 'strikes') progLoad();
   music.voices = []; musicBuild();
 }
