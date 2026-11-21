@@ -2787,8 +2787,8 @@ readColors();
 const ROUTES = {
   drum: { tab: 'drum', shape: 'fem:horn', eyebrow: 'Interactive · from my undergrad thesis', title: 'Eigendrum — Jackson Turner' },
   billiards: { tab: 'quantum', bill: 'c', shape: 'fem:mushroom', eyebrow: 'Interactive · dynamical billiards', title: 'Dynamical billiards · Eigendrum — Jackson Turner' },
-  quantum: { tab: 'quantum', bill: 'q', shape: 'fem:stadium', eyebrow: 'Interactive · quantum billiards', title: 'Quantum billiards · Eigendrum — Jackson Turner' },
-  modes: { tab: 'modes' }, heat: { tab: 'heat' }, compare: { tab: 'modes' }, // (old #compare links open the Modes tab)
+  quantum: { tab: 'quantum', bill: 'q', shape: 'ex:equi', eyebrow: 'Interactive · quantum billiards', title: 'Quantum billiards · Eigendrum — Jackson Turner' },
+  modes: { tab: 'modes', shape: 'fem:horn' }, heat: { tab: 'heat' }, compare: { tab: 'modes' }, // (old #compare links open the Modes tab)
 };
 let routing = false;
 function routeName() { if (tab === 'quantum') return bmode === 'c' ? 'billiards' : 'quantum'; return tab; }
