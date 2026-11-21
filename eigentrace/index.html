@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Eigentrace — Jackson Turner</title>
-<meta name="description" content="Draw a shape and see its Dirichlet eigenmodes. Hear it as a drum, play it like a keyboard, watch heat diffuse through it, and run classical and quantum billiards inside it. Exact Bessel and Lamé modes, finite elements, and the method from my undergrad thesis.">
+<meta name="description" content="Draw a shape and play with its eigenmodes. Hear it as a drum or a keyboard, watch heat diffuse through it, and run classical and quantum billiards inside it. Exact Bessel and Lamé modes, and finite elements for everything else.">
 <meta name="author" content="Jackson Turner">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∇</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -228,9 +228,9 @@ td.err { color: var(--muted); font-size: 11px; }
 <div class="wrap">
   <header class="top">
     <div>
-      <p class="eyebrow" id="eyebrow">Interactive · from my undergrad thesis</p>
+      <p class="eyebrow" id="eyebrow">Interactive · eigenmodes</p>
       <h1>Eigentrace</h1>
-      <p class="lede">Draw a shape or pick one from my undergrad thesis and see its <a href="https://en.wikipedia.org/wiki/Dirichlet_eigenvalue" target="_blank" rel="noopener">eigenmodes</a>. Hear it as a drum, play it like a keyboard, watch <a href="https://en.wikipedia.org/wiki/Heat_equation" target="_blank" rel="noopener">heat diffuse</a>, and run classical and quantum <a href="https://en.wikipedia.org/wiki/Dynamical_billiards" target="_blank" rel="noopener">billiards</a> inside it. Side plots show the <a href="https://en.wikipedia.org/wiki/Lyapunov_exponent" target="_blank" rel="noopener">Lyapunov exponent</a>, <a href="https://en.wikipedia.org/wiki/Husimi_Q_representation" target="_blank" rel="noopener">Husimi functions</a>, nodal domain counts, and the <a href="https://en.wikipedia.org/wiki/Hearing_the_shape_of_a_drum" target="_blank" rel="noopener">area and perimeter recovered from the spectrum</a>.</p>
+      <p class="lede">Draw a shape and play with its <a href="https://en.wikipedia.org/wiki/Dirichlet_eigenvalue" target="_blank" rel="noopener">eigenmodes</a>. Hear it as a drum or a keyboard, watch <a href="https://en.wikipedia.org/wiki/Heat_equation" target="_blank" rel="noopener">heat diffuse</a>, and run classical and quantum <a href="https://en.wikipedia.org/wiki/Dynamical_billiards" target="_blank" rel="noopener">billiards</a> inside it. Side plots show the <a href="https://en.wikipedia.org/wiki/Lyapunov_exponent" target="_blank" rel="noopener">Lyapunov exponent</a>, <a href="https://en.wikipedia.org/wiki/Husimi_Q_representation" target="_blank" rel="noopener">Husimi functions</a>, nodal domain counts, and the <a href="https://en.wikipedia.org/wiki/Hearing_the_shape_of_a_drum" target="_blank" rel="noopener">area and perimeter recovered from the spectrum</a>.</p>
     </div>
     <div class="status" id="status" role="status"><span class="dot"></span><span id="statusText">starting solver…</span></div>
   </header>
@@ -3171,7 +3171,7 @@ new MutationObserver(readColors).observe(document.documentElement, { attributes:
 if (matchMedia('(max-width: 600px)').matches) for (const [id, w, h] of [['birk', 380, 240], ['lyap', 380, 170], ['surv', 380, 160], ['sgram', 380, 160], ['husimi', 380, 260]]) { const c = $(id); if (c) { c.width = w; c.height = h; } }
 readColors();
 const ROUTES = {
-  drum: { tab: 'drum', shape: 'fem:horn', eyebrow: 'Interactive · from my undergrad thesis', title: 'Eigentrace — Jackson Turner' },
+  drum: { tab: 'drum', shape: 'fem:horn', eyebrow: 'Interactive · eigenmodes', title: 'Eigentrace — Jackson Turner' },
   billiards: { tab: 'quantum', bill: 'c', shape: 'fem:mushroom', eyebrow: 'Interactive · dynamical billiards', title: 'Dynamical billiards · Eigentrace — Jackson Turner' },
   synth: { tab: 'drum', synth: true, shape: 'fem:horn', eyebrow: 'Interactive · eigensynth', title: 'Eigensynth · Eigentrace — Jackson Turner' },
   quantum: { tab: 'quantum', bill: 'q', shape: 'ex:equi', eyebrow: 'Interactive · quantum billiards', title: 'Quantum billiards · Eigentrace — Jackson Turner' },
