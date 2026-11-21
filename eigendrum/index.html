@@ -334,6 +334,9 @@ td.err { color: var(--muted); font-size: 11px; }
       </div>
       <div class="side" data-side="modes" hidden>
         <div class="mode-info" id="modeInfo"></div>
+        <div class="legend"><span><i style="background: var(--accent)"></i>eigenvalues (counting function / spacings)</span><span><i style="background: none; border-top: 2px dashed var(--ink)"></i>Weyl's law</span><span><i style="background: #7a2438"></i>Poisson (regular)</span><span><i style="background: #165b36; opacity: .5"></i>GOE (chaotic)</span></div>
+        <svg class="spectrum" id="eigChart" viewBox="0 0 600 330" role="img" aria-label="Eigenvalue counting function and level-spacing histogram"></svg>
+        <p class="meta" id="eigInfo" style="margin:0"></p>
         <p class="small">Each mode is a pattern the drum can vibrate in all by itself, at one pitch. Red and blue parts move in opposite directions; along the nodal lines the drum stays still. Every hit is a mix of these patterns, which is what the Drum tab plays.</p>
         <p class="small"><b>Keyboard:</b> ← → step through the modes, ↓ jumps ahead 10 and ↑ jumps back 10. Each step plays the mode's note. You can also click a mode in the strip below, or use ◀ ▶. Higher modes have more nodal lines and higher pitch, roughly in proportion to √λ.</p>
       </div>
@@ -1633,11 +1636,62 @@ function drawStrip() {
   }
   $('stripMeta').textContent = nModes > ns ? `showing the first ${ns} of ${nModes.toLocaleString()} modes · ◀ ▶ on the Modes tab steps through all of them` : '−Δψ = λψ, ψ = 0 on the edge · click one to select it';
 }
+// ---------- eigenvalue distribution: counting function vs Weyl's law, and level spacings vs Poisson / GOE ----------
+function shapeAreaPerimeter() {
+  let A = 0; for (let i = 0; i < heat.n; i++) A += heat.Ml[i];
+  let P = 0;
+  if (domain) { for (const poly of [domain.polys.outer, domain.polys.hole]) { if (!poly) continue; for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length]; P += Math.hypot(b[0] - a[0], b[1] - a[1]); } } }
+  else { for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) { const p = y * G + x; if (!mask[p]) continue; if (x === 0 || !mask[p - 1]) P++; if (x === G - 1 || !mask[p + 1]) P++; if (y === 0 || !mask[p - G]) P++; if (y === G - 1 || !mask[p + G]) P++; } P /= G; }
+  return { A, P };
+}
+let eigDrawn = '';
+function drawEigenChart() {
+  const svg = $('eigChart'); if (!svg || !nModes || !heat) return;
+  const key = nModes + '|' + selected + '|' + reqDone; if (key === eigDrawn) return; eigDrawn = key;
+  const W = 600, L = 46, R = 12, T1 = 22, B1 = 150, T2 = 196, B2 = 300, n = nModes, lam = vals, { A, P } = shapeAreaPerimeter();
+  const weyl = (l) => (A * l - P * Math.sqrt(l)) / (4 * Math.PI), lmax = lam[n - 1] * 1.02;
+  const sx = (l) => L + l / lmax * (W - L - R), sy = (c) => B1 - c / (n * 1.05) * (B1 - T1);
+  let s = `<text x="${L}" y="${T1 - 8}">counting function N(λ): how many modes lie below λ</text>`;
+  for (const f of [0, 0.25, 0.5, 0.75, 1]) { const c = Math.round(f * n); s += `<line x1="${L}" x2="${W - R}" y1="${sy(c)}" y2="${sy(c)}" stroke="${C.line}" stroke-width="1"/><text x="${L - 5}" y="${sy(c) + 3}" text-anchor="end">${c}</text>`; }
+  let path = `M${sx(0)},${sy(0)}`; for (let k = 0; k < n; k++) path += `H${sx(lam[k]).toFixed(1)}V${sy(k + 1).toFixed(1)}`;
+  s += `<path d="${path}" fill="none" stroke="${C.accent}" stroke-width="1.6"/>`;
+  let wp = ''; for (let i = 0; i <= 120; i++) { const l = lmax * i / 120, c = Math.max(0, weyl(l)); wp += `${i ? 'L' : 'M'}${sx(l).toFixed(1)},${sy(Math.min(c, n * 1.05)).toFixed(1)}`; }
+  s += `<path d="${wp}" fill="none" stroke="${C.ink}" stroke-width="1.4" stroke-dasharray="5 4" opacity="0.8"/>`;
+  const ls = lam[selected]; s += `<line x1="${sx(ls)}" x2="${sx(ls)}" y1="${T1}" y2="${B1}" stroke="#7a2438" stroke-width="1" stroke-dasharray="2 3"/><circle cx="${sx(ls)}" cy="${sy(selected + 1)}" r="3.5" fill="#7a2438" stroke="#fff" stroke-width="1"/><text x="${Math.min(sx(ls) + 5, W - R - 40)}" y="${sy(selected + 1) - 6}" fill="#7a2438">ψ${sub(selected + 1)}</text>`;
+  for (const f of [0, 0.5, 1]) s += `<text x="${sx(f * lmax)}" y="${B1 + 13}" text-anchor="${f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}">${Math.round(f * lmax)}</text>`;
+  s += `<text x="${W - R}" y="${B1 + 25}" text-anchor="end">λ</text>`;
+  // unfold with a smooth fit to the actual counting function, N(λ) ≈ aλ + b√λ + c, and count repeated eigenvalues once
+  let S = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], rhs = [0, 0, 0];
+  for (let k = 0; k < n; k++) { const f = [lam[k], Math.sqrt(lam[k]), 1], y = k + 1; for (let i = 0; i < 3; i++) { rhs[i] += f[i] * y; for (let j = 0; j < 3; j++) S[i][j] += f[i] * f[j]; } }
+  const det3 = (M) => M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) - M[0][1] * (M[1][0] * M[2][2] - M[1][2] * M[2][0]) + M[0][2] * (M[1][0] * M[2][1] - M[1][1] * M[2][0]);
+  const D = det3(S), cf = [0, 1, 2].map(c => det3(S.map((row, i) => row.map((v, j) => j === c ? rhs[i] : v))) / D);
+  const Nfit = (l) => cf[0] * l + cf[1] * Math.sqrt(l) + cf[2];
+  const lev = []; for (let k = 0; k < n; k++) if (!lev.length || lam[k] - lev[lev.length - 1] > 1e-6 * lam[k]) lev.push(lam[k]);
+  const sp = []; for (let k = 0; k + 1 < lev.length; k++) sp.push(Nfit(lev[k + 1]) - Nfit(lev[k]));
+  const mean = sp.reduce((a, b) => a + b, 0) / (sp.length || 1), ss = sp.map(v => v / (mean || 1)), smax = 3.5, nb = 28, hist = new Array(nb).fill(0);
+  for (const v of ss) { const b = Math.floor(v / smax * nb); if (b >= 0 && b < nb) hist[b]++; }
+  const dens = hist.map(c => c / (ss.length * smax / nb)), pmax = Math.max(1.05, ...dens);
+  const hx = (v) => L + v / smax * (W - L - R), hy = (d) => B2 - d / pmax * (B2 - T2);
+  s += `<text x="${L}" y="${T2 - 8}">level spacings s (unfolded, mean 1; repeated eigenvalues counted once): ${ss.length.toLocaleString()} gaps</text>`;
+  for (const d of [0, 0.5, 1]) if (d <= pmax) s += `<line x1="${L}" x2="${W - R}" y1="${hy(d)}" y2="${hy(d)}" stroke="${C.line}" stroke-width="1"/><text x="${L - 5}" y="${hy(d) + 3}" text-anchor="end">${d}</text>`;
+  const bw = (W - L - R) / nb; dens.forEach((d, i) => { if (d > 0) s += `<rect x="${L + i * bw + 1}" y="${hy(d)}" width="${bw - 2}" height="${B2 - hy(d)}" fill="${C.accent}" opacity="0.75"/>`; });
+  let pp = '', gp = ''; for (let i = 0; i <= 140; i++) { const v = smax * i / 140; pp += `${i ? 'L' : 'M'}${hx(v).toFixed(1)},${hy(Math.exp(-v)).toFixed(1)}`; gp += `${i ? 'L' : 'M'}${hx(v).toFixed(1)},${hy(Math.PI / 2 * v * Math.exp(-Math.PI * v * v / 4)).toFixed(1)}`; }
+  s += `<path d="${pp}" fill="none" stroke="#7a2438" stroke-width="2"/><path d="${gp}" fill="none" stroke="#165b36" stroke-width="2" opacity="0.6"/>`;
+  for (const v of [0, 1, 2, 3]) s += `<text x="${hx(v)}" y="${B2 + 13}" text-anchor="middle">${v}</text>`;
+  s += `<text x="${W - R}" y="${B2 + 25}" text-anchor="end">s</text>`;
+  svg.innerHTML = s;
+  const sorted = ss.slice().sort((a, b) => a - b); let dP = 0, dG = 0;
+  sorted.forEach((v, i) => { const e1 = (i + 1) / sorted.length, e0 = i / sorted.length, cP = 1 - Math.exp(-v), cG = 1 - Math.exp(-Math.PI * v * v / 4); dP = Math.max(dP, Math.abs(e1 - cP), Math.abs(e0 - cP)); dG = Math.max(dG, Math.abs(e1 - cG), Math.abs(e0 - cG)); });
+  const repeats = n - lev.length, weylErr = (n - weyl(lam[n - 1])) / n;
+  $('eigInfo').textContent = n < 40 ? 'Use more modes to see the statistics.' :
+    `Spacings look ${dG < dP ? 'chaotic (closer to GOE)' : 'regular (closer to Poisson)'}: distance to GOE ${dG.toFixed(3)}, to Poisson ${dP.toFixed(3)}.${repeats > 0.05 * n ? ` ${Math.round(100 * repeats / n)}% of the modes repeat another's eigenvalue (a symmetric shape); each is counted once.` : ''} Weyl's law, from the area and perimeter alone, predicts the mode count to within ${Math.abs(100 * weylErr).toFixed(1)}%.`;
+}
 function showModeInfo() {
   const el = $('modeInfo'); if (!el) return;
   if (!nModes) { el.textContent = 'Modes are being computed…'; return; }
   const k = selected, lam = vals[k], f = +$('f0').value * Math.sqrt(lam / vals[0]);
   let m = 1; for (let j = k - 1; j >= 0 && Math.abs(vals[j] - lam) <= 1e-6 * lam; j--) m++; for (let j = k + 1; j < nModes && Math.abs(vals[j] - lam) <= 1e-6 * lam; j++) m++;
+  drawEigenChart();
   el.innerHTML = `<b>ψ${sub(k + 1)}</b> of ${nModes.toLocaleString()}<br>λ = ${lam.toFixed(domain && domain.method === 'exact' ? 4 : 2)}<br>pitch ${fmtHz(f)} (with f₁ = ${$('f0').value} Hz)${m > 1 ? `<br>shares its pitch with ${m - 1} other mode${m > 2 ? 's' : ''}` : ''}${basis && basis.labels[k] ? `<br>${basis.labels[k]}` : ''}`;
 }
 function selectMode(k, fromKeys) {
