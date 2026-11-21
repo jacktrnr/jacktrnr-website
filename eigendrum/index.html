@@ -207,6 +207,20 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="ex:square">Square</option>
               <option value="ex:rect">Rectangle 2:1</option>
             </optgroup>
+            <optgroup label="Billiards and designs (mesh)">
+              <option value="fem:stadium">Stadium · chaotic</option>
+              <option value="fem:qstadium">Quarter stadium · chaotic, symmetry removed</option>
+              <option value="fem:ellipse">Ellipse · regular</option>
+              <option value="fem:sinai">Sinai billiard · chaotic</option>
+              <option value="fem:mushroom">Mushroom · mixed</option>
+              <option value="fem:limacon">Limaçon · mixed</option>
+              <option value="fem:star">Smooth star</option>
+              <option value="fem:gear">Gear</option>
+              <option value="fem:squircle">Squircle</option>
+              <option value="fem:plus">Plus sign</option>
+              <option value="fem:pentagram">Pentagram</option>
+              <option value="fem:heart">Heart</option>
+            </optgroup>
             <optgroup label="Fitted mesh (no closed form)">
               <option value="fem:horn" selected>Spiral horn</option>
               <option value="fem:slant">“Slanted” triangle</option>
@@ -229,6 +243,7 @@ td.err { color: var(--muted); font-size: 11px; }
               <option value="px:star">Star</option>
               <option value="px:heart">Heart</option>
               <option value="px:dumbbell">Dumbbell</option>
+              <option value="px:koch">Koch snowflake · fractal</option>
               <option value="px:slit">Double slit (quantum)</option>
               <option value="px:custom" hidden>Custom drawing</option>
             </optgroup>
@@ -334,7 +349,7 @@ td.err { color: var(--muted); font-size: 11px; }
       </div>
       <div class="side" data-side="modes" hidden>
         <div class="mode-info" id="modeInfo"></div>
-        <div class="legend"><span><i style="background: var(--accent)"></i>eigenvalues (counting function / spacings)</span><span><i style="background: none; border-top: 2px dashed var(--ink)"></i>Weyl's law</span><span><i style="background: #7a2438"></i>Poisson (regular)</span><span><i style="background: #165b36; opacity: .5"></i>GOE (chaotic)</span></div>
+        <div class="legend"><span><i style="background: var(--accent)"></i>this shape (counting function, spacing distribution)</span><span><i style="background: none; border-top: 2px dashed var(--ink)"></i>Weyl's law</span><span><i style="background: #7a2438"></i>Poisson (regular)</span><span><i style="background: #165b36; opacity: .5"></i>GOE (chaotic)</span></div>
         <svg class="spectrum" id="eigChart" viewBox="0 0 600 330" role="img" aria-label="Eigenvalue counting function and level-spacing histogram"></svg>
         <p class="meta" id="eigInfo" style="margin:0"></p>
         <p class="small">Each mode is a pattern the drum can vibrate in all by itself, at one pitch. Red and blue parts move in opposite directions; along the nodal lines the drum stays still. Every hit is a mix of these patterns, which is what the Drum tab plays.</p>
@@ -455,10 +470,11 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
 'use strict';
 const TAU = 2 * Math.PI, H3 = Math.sqrt(3) / 2;
 function segPt(s, t) {
+  if (s.type === 'curve') return s.f(t);
   if (s.type === 'line') return [s.a[0] + (s.b[0] - s.a[0]) * t, s.a[1] + (s.b[1] - s.a[1]) * t];
   const th = s.t0 + (s.t1 - s.t0) * t; return [s.c[0] + s.r * Math.cos(th), s.c[1] - s.r * Math.sin(th)];
 }
-function segLen(s) { return s.type === 'line' ? Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]) : Math.abs(s.t1 - s.t0) * s.r; }
+function segLen(s) { if (s.type === 'curve') return s.len; return s.type === 'line' ? Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]) : Math.abs(s.t1 - s.t0) * s.r; }
 function ringPt(sh, th) {
   if (sh.kind === 'circle') return [sh.c[0] + sh.r * Math.cos(th), sh.c[1] - sh.r * Math.sin(th)];
   const d = sh.half / Math.max(Math.abs(Math.cos(th)), Math.abs(Math.sin(th)));
@@ -499,7 +515,7 @@ function geomPolys(g) {
     return { outer: o, hole: h };
   }
   const o = [];
-  for (const s of g.segs) { const k = s.type === 'line' ? 1 : Math.max(8, Math.ceil(Math.abs(s.t1 - s.t0) / TAU * 512)); for (let i = 0; i < k; i++) o.push(segPt(s, i / k)); }
+  for (const s of g.segs) { const k = s.type === 'line' ? 1 : s.type === 'curve' ? Math.max(64, Math.ceil(s.len / 0.002)) : Math.max(8, Math.ceil(Math.abs(s.t1 - s.t0) / TAU * 512)); for (let i = 0; i < k; i++) o.push(segPt(s, i / k)); }
   return { outer: o, hole: null };
 }
 function inPoly(P, x, y) {
@@ -534,7 +550,53 @@ function hornGeom() {
     return w;
   }, (u) => k * (r0 * Math.exp(b * (t0 + u * (t1 - t0))) - r0), 0.94); // rows evenly spaced in angle; fit the box
 }
+// ---- more shapes: curves, billiards and designs (all star-shaped about their center, so the fan mesher applies)
+function curveSeg(f) { let len = 0, prev = f(0); for (let i = 1; i <= 2000; i++) { const q = f(i / 2000); len += Math.hypot(q[0] - prev[0], q[1] - prev[1]); prev = q; } return { type: 'curve', f, len }; }
+function fitPoints(pts, size) { let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (const [x, y] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } const sc = size / Math.max(x1 - x0, y1 - y0), mx = (x0 + x1) / 2, my = (y0 + y1) / 2; return (x, y) => [0.5 + (x - mx) * sc, 0.5 - (y - my) * sc]; }
+function curveGeom(fxy, centerXY) { // fxy(θ) -> [x, y] with y up; scaled to fill the box
+  const pts = []; for (let i = 0; i < 720; i++) pts.push(fxy(TAU * i / 720));
+  const T = fitPoints(pts, 0.9), c = centerXY || [0, 0];
+  return { type: 'fan', center: T(c[0], c[1]), segs: [curveSeg((t) => { const q = fxy(TAU * t); return T(q[0], q[1]); })], analytic: null };
+}
+const polar = (rf) => (th) => { const r = rf(th); return [r * Math.cos(th), r * Math.sin(th)]; };
+function polyFit(V, centerXY) { const T = fitPoints(V, 0.9), c = centerXY || [0, 0]; return polyGeom(V.map(([x, y]) => T(x, y)), T(c[0], c[1]), null); }
+function koch(level) {
+  const base = [0, 1, 2].map(i => [Math.cos(Math.PI / 2 + TAU * i / 3), Math.sin(Math.PI / 2 + TAU * i / 3)]);
+  const area = (Q) => { let a = 0; for (let i = 0; i < Q.length; i++) { const u = Q[i], v = Q[(i + 1) % Q.length]; a += u[0] * v[1] - v[0] * u[1]; } return Math.abs(a) / 2; };
+  if (level > 0 && area(kochStep(base)) < area(kochStep(base.slice().reverse()))) base.reverse();
+  let P = base;
+  for (let l = 0; l < level; l++) P = kochStep(P);
+  return P;
+}
+function kochStep(P) {
+  {
+    const Q = [];
+    for (let i = 0; i < P.length; i++) {
+      const a = P[i], b = P[(i + 1) % P.length], d = [(b[0] - a[0]) / 3, (b[1] - a[1]) / 3];
+      const p1 = [a[0] + d[0], a[1] + d[1]], p2 = [a[0] + 2 * d[0], a[1] + 2 * d[1]];
+      const pk = [p1[0] + d[0] * 0.5 + d[1] * Math.sqrt(3) / 2, p1[1] + d[1] * 0.5 - d[0] * Math.sqrt(3) / 2];
+      Q.push(a, p1, pk, p2);
+    }
+    return Q;
+  }
+}
+function stadium() { const a = 0.22, R = 0.22, c = [0.5, 0.5]; return { type: 'fan', center: c, segs: [line([c[0] - a, c[1] - R], [c[0] + a, c[1] - R]), { type: 'arc', c: [c[0] + a, c[1]], r: R, t0: Math.PI / 2, t1: -Math.PI / 2 }, line([c[0] + a, c[1] + R], [c[0] - a, c[1] + R]), { type: 'arc', c: [c[0] - a, c[1]], r: R, t0: -Math.PI / 2, t1: -3 * Math.PI / 2 }], analytic: null }; }
+function quarterStadium() { const R = 0.45, a = 0.45, O = [0.05, 0.725]; return { type: 'fan', center: [O[0] + 0.4, O[1] - 0.2], segs: [line(O, [O[0] + a + R, O[1]]), { type: 'arc', c: [O[0] + a, O[1]], r: R, t0: 0, t1: Math.PI / 2 }, line([O[0] + a, O[1] - R], [O[0], O[1] - R]), line([O[0], O[1] - R], O)], analytic: null }; }
+function mushroom() { const cy = 0.58, R = 0.42, w = 0.1, b = 0.95, c = [0.5, cy];
+  return { type: 'fan', center: [0.5, cy - 0.03], segs: [{ type: 'arc', c, r: R, t0: 0, t1: Math.PI }, line([0.5 - R, cy], [0.5 - w, cy]), line([0.5 - w, cy], [0.5 - w, b]), line([0.5 - w, b], [0.5 + w, b]), line([0.5 + w, b], [0.5 + w, cy]), line([0.5 + w, cy], [0.5 + R, cy])], analytic: null }; }
 const GEOMS = {
+  stadium: { how: 'Bunimovich stadium (chaotic billiard)', make: () => stadium() },
+  qstadium: { how: 'quarter stadium: symmetry removed, so its chaos shows in the statistics', make: () => quarterStadium() },
+  ellipse: { how: 'ellipse (regular, integrable billiard)', make: () => curveGeom((t) => [Math.cos(t), 0.6 * Math.sin(t)]) },
+  sinai: { how: 'Sinai billiard: square with a round hole (chaotic)', make: () => ({ type: 'ring', center: [0.5, 0.5], outer: { kind: 'square', c: [0.5, 0.5], half: 0.44 }, inner: { kind: 'circle', c: [0.5, 0.5], r: 0.16 }, analytic: null }) },
+  mushroom: { how: 'mushroom billiard (mixed regular and chaotic)', make: () => mushroom() },
+  limacon: { how: 'limaçon r = 1 + ½cos θ (Robnik billiard, mixed)', make: () => curveGeom(polar((t) => 1 + 0.5 * Math.cos(t))) },
+  star: { how: 'smooth star r = 1 + 0.35 cos 5θ', make: () => curveGeom(polar((t) => 1 + 0.35 * Math.cos(5 * (t - Math.PI / 2)))) },
+  gear: { how: 'gear r = 1 + 0.08 cos 14θ', make: () => curveGeom(polar((t) => 1 + 0.08 * Math.cos(14 * t))) },
+  squircle: { how: 'squircle x⁴ + y⁴ = 1', make: () => curveGeom(polar((t) => (Math.cos(t) ** 4 + Math.sin(t) ** 4) ** -0.25)) },
+  plus: { how: 'plus sign', make: () => { const a = 0.3, b = 1; return polyFit([[a, b], [-a, b], [-a, a], [-b, a], [-b, -a], [-a, -a], [-a, -b], [a, -b], [a, -a], [b, -a], [b, a], [a, a]]); } },
+  pentagram: { how: 'five-pointed star', make: () => { const V = []; for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.4 : 1, t = Math.PI / 2 + Math.PI * i / 5; V.push([r * Math.cos(t), r * Math.sin(t)]); } return polyFit(V); } },
+  heart: { how: 'heart', make: () => curveGeom((t) => [16 * Math.sin(t) ** 3, 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)], [0, 1]) },
   horn: { how: 'tube mesh along a logarithmic spiral', make: () => hornGeom() },
   disk: { how: 'Bessel J_m', make: () => ({ type: 'fan', center: [0.5, 0.5], segs: [{ type: 'arc', c: [0.5, 0.5], r: 0.45, t0: 0, t1: TAU }], analytic: { kind: 'disk', c: [0.5, 0.5], R: 0.45 } }) },
   qdisk: { how: 'Bessel J_2k', make: () => { const c = [0.08, 0.92], R = 0.84; return { type: 'fan', center: [c[0] + 0.3 * R, c[1] - 0.3 * R], segs: [line(c, [c[0] + R, c[1]]), { type: 'arc', c, r: R, t0: 0, t1: Math.PI / 2 }, line([c[0], c[1] - R], c)], analytic: { kind: 'sector', c, R, alpha: Math.PI / 2 } }; } },
@@ -816,7 +878,7 @@ function meshPayload(mesh) { const pos = new Float32Array(2 * mesh.pos.length); 
 function solveFEM(g, K, R, valsOnly) {
   const t0 = performance.now(), mesh = meshGeom(g, 4000), fe = femOps(mesh);
   let r;
-  if (g.type === 'tube') { // strip meshes are narrow-banded: shift-invert slicing beats Chebyshev filtering here
+  if (g.type === 'tube' || fe.op.bound > 5e5) { // narrow-banded strips, or meshes with tiny elements: shift-invert slicing beats Chebyshev filtering
     const prev = audio, prevR = refine;
     audio = { kind: 'op', op: fe.op, Y: [], lam: new F(0), sqrtM: fe.sq, xy: fe.xy, h: fe.h }; refine = null;
     const post = self.postMessage; self.postMessage = null; const RR = refineSync(1, K + 6); self.postMessage = post;
@@ -827,7 +889,7 @@ function solveFEM(g, K, R, valsOnly) {
   if (valsOnly) return { vals, nodes: fe.n, ms: performance.now() - t0 };
   const map = femRaster(mesh, fe.idx, R), Y = new Float32Array(Kout * fe.n);
   for (let k = 0; k < Kout; k++) { const y = r.X[k], sg = signFix(y); for (let i = 0; i < fe.n; i++) Y[k * fe.n + i] = sg * y[i] / fe.sq[i]; }
-  const keep = g.type === 'tube' && refine && refine.op === fe.op ? refine : null;
+  const keep = refine && refine.op === fe.op ? refine : null;
   audio = { kind: 'op', op: fe.op, Y: r.X.slice(0, Kout), lam: vals, sqrtM: fe.sq, xy: fe.xy, h: fe.h }; refine = keep;
   if (keep) { keep.a = audio; keep.sent = Kout; } // the page gets the first Kout modes with the shape; later batches continue from there
   return { vals, Y, n: fe.n, mask: map.mask, R, K: Kout, nodes: fe.n, mesh: meshPayload(mesh), heat: heatPayload(fe, map), hmesh: fe.h, ms: performance.now() - t0, labels: null };
@@ -1325,7 +1387,7 @@ self.onmessage = (ev) => {
 const $ = (id) => document.getElementById(id);
 const F = Float64Array;
 const SHARED = $('shared-src').textContent;
-const SH = new Function(SHARED + '\nreturn { GEOMS, geomPolys, rasterize, inGeom };')();
+const SH = new Function(SHARED + '\nreturn { GEOMS, geomPolys, rasterize, inGeom, inPoly, koch };')();
 const worker = new Worker(URL.createObjectURL(new Blob([SHARED, '\n', $('worker-src').textContent], { type: 'text/javascript' })));
 const RS = 192, KX = 64;
 
@@ -1370,6 +1432,8 @@ const presets = {
   star: (x, y) => { const r = Math.hypot(x, y), t = Math.atan2(y, x) + Math.PI / 2; return r < 0.56 + 0.32 * Math.cos(5 * t); },
   heart: (x, y) => { const X = x * 1.2, Y = -y * 1.2 + 0.2, a = X * X + Y * Y - 1; return a * a * a - X * X * Y * Y * Y < 0; },
   dumbbell: (x, y) => Math.hypot(x - 0.5, y) < 0.4 || Math.hypot(x + 0.5, y) < 0.4 || (Math.abs(y) < 0.09 && Math.abs(x) < 0.5),
+  // Koch snowflake, level 4 (a fractal drum); point-in-polygon on the snowflake outline
+  koch: (() => { let P = null; return (x, y) => { if (!P) { const K = SH.koch(4); let m = 0; for (const [a, b] of K) m = Math.max(m, Math.abs(a), Math.abs(b)); P = K.map(([a, b]) => [a / m * 0.95, -(b / m * 0.95) + 0.05]); } return SH.inPoly(P, x, y); }; })(),
   // a box split by a thin wall with two narrow slits
   slit: (x, y) => Math.abs(x) < 0.95 && Math.abs(y) < 0.7 && !(Math.abs(x + 0.45) < 0.025 && !(Math.abs(y - 0.16) < 0.04 || Math.abs(y + 0.16) < 0.04)),
 };
@@ -1660,31 +1724,29 @@ function drawEigenChart() {
   const ls = lam[selected]; s += `<line x1="${sx(ls)}" x2="${sx(ls)}" y1="${T1}" y2="${B1}" stroke="#7a2438" stroke-width="1" stroke-dasharray="2 3"/><circle cx="${sx(ls)}" cy="${sy(selected + 1)}" r="3.5" fill="#7a2438" stroke="#fff" stroke-width="1"/><text x="${Math.min(sx(ls) + 5, W - R - 40)}" y="${sy(selected + 1) - 6}" fill="#7a2438">ψ${sub(selected + 1)}</text>`;
   for (const f of [0, 0.5, 1]) s += `<text x="${sx(f * lmax)}" y="${B1 + 13}" text-anchor="${f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}">${Math.round(f * lmax)}</text>`;
   s += `<text x="${W - R}" y="${B1 + 25}" text-anchor="end">λ</text>`;
-  // unfold with a smooth fit to the actual counting function, N(λ) ≈ aλ + b√λ + c, and count repeated eigenvalues once
-  let S = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], rhs = [0, 0, 0];
-  for (let k = 0; k < n; k++) { const f = [lam[k], Math.sqrt(lam[k]), 1], y = k + 1; for (let i = 0; i < 3; i++) { rhs[i] += f[i] * y; for (let j = 0; j < 3; j++) S[i][j] += f[i] * f[j]; } }
-  const det3 = (M) => M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) - M[0][1] * (M[1][0] * M[2][2] - M[1][2] * M[2][0]) + M[0][2] * (M[1][0] * M[2][1] - M[1][1] * M[2][0]);
-  const D = det3(S), cf = [0, 1, 2].map(c => det3(S.map((row, i) => row.map((v, j) => j === c ? rhs[i] : v))) / D);
-  const Nfit = (l) => cf[0] * l + cf[1] * Math.sqrt(l) + cf[2];
+  // spacings of distinct eigenvalues, each divided by the local mean spacing (±15 levels): always positive, mean ≈ 1
   const lev = []; for (let k = 0; k < n; k++) if (!lev.length || lam[k] - lev[lev.length - 1] > 1e-6 * lam[k]) lev.push(lam[k]);
-  const sp = []; for (let k = 0; k + 1 < lev.length; k++) sp.push(Nfit(lev[k + 1]) - Nfit(lev[k]));
-  const mean = sp.reduce((a, b) => a + b, 0) / (sp.length || 1), ss = sp.map(v => v / (mean || 1)), smax = 3.5, nb = 28, hist = new Array(nb).fill(0);
-  for (const v of ss) { const b = Math.floor(v / smax * nb); if (b >= 0 && b < nb) hist[b]++; }
-  const dens = hist.map(c => c / (ss.length * smax / nb)), pmax = Math.max(1.05, ...dens);
-  const hx = (v) => L + v / smax * (W - L - R), hy = (d) => B2 - d / pmax * (B2 - T2);
-  s += `<text x="${L}" y="${T2 - 8}">level spacings s (unfolded, mean 1; repeated eigenvalues counted once): ${ss.length.toLocaleString()} gaps</text>`;
-  for (const d of [0, 0.5, 1]) if (d <= pmax) s += `<line x1="${L}" x2="${W - R}" y1="${hy(d)}" y2="${hy(d)}" stroke="${C.line}" stroke-width="1"/><text x="${L - 5}" y="${hy(d) + 3}" text-anchor="end">${d}</text>`;
-  const bw = (W - L - R) / nb; dens.forEach((d, i) => { if (d > 0) s += `<rect x="${L + i * bw + 1}" y="${hy(d)}" width="${bw - 2}" height="${B2 - hy(d)}" fill="${C.accent}" opacity="0.75"/>`; });
-  let pp = '', gp = ''; for (let i = 0; i <= 140; i++) { const v = smax * i / 140; pp += `${i ? 'L' : 'M'}${hx(v).toFixed(1)},${hy(Math.exp(-v)).toFixed(1)}`; gp += `${i ? 'L' : 'M'}${hx(v).toFixed(1)},${hy(Math.PI / 2 * v * Math.exp(-Math.PI * v * v / 4)).toFixed(1)}`; }
+  const raw = []; for (let k = 0; k + 1 < lev.length; k++) raw.push(lev[k + 1] - lev[k]);
+  const ss = raw.map((d, k) => { const lo = Math.max(0, k - 15), hi = Math.min(raw.length, k + 16); let m = 0; for (let j = lo; j < hi; j++) m += raw[j]; return d / (m / (hi - lo)); });
+  const sorted = ss.slice().sort((x, y) => x - y), smax = 3.5;
+  const cP = (v) => 1 - Math.exp(-v), cG = (v) => 1 - Math.exp(-Math.PI * v * v / 4);
+  let dP = 0, dG = 0, atP = 0, atG = 0;
+  sorted.forEach((v, i) => { const e1 = (i + 1) / sorted.length, e0 = i / sorted.length; for (const e of [e0, e1]) { if (Math.abs(e - cP(v)) > dP) { dP = Math.abs(e - cP(v)); atP = v; } if (Math.abs(e - cG(v)) > dG) { dG = Math.abs(e - cG(v)); atG = v; } } });
+  const hx = (v) => L + Math.min(v, smax) / smax * (W - L - R), hy = (d) => B2 - d * (B2 - T2);
+  s += `<text x="${L}" y="${T2 - 8}">cumulative distribution of level spacings s (repeats counted once): ${ss.length.toLocaleString()} gaps</text>`;
+  for (const d of [0, 0.5, 1]) s += `<line x1="${L}" x2="${W - R}" y1="${hy(d)}" y2="${hy(d)}" stroke="${C.line}" stroke-width="1"/><text x="${L - 5}" y="${hy(d) + 3}" text-anchor="end">${d}</text>`;
+  let pp = '', gp = ''; for (let i = 0; i <= 140; i++) { const v = smax * i / 140; pp += `${i ? 'L' : 'M'}${hx(v).toFixed(1)},${hy(cP(v)).toFixed(1)}`; gp += `${i ? 'L' : 'M'}${hx(v).toFixed(1)},${hy(cG(v)).toFixed(1)}`; }
   s += `<path d="${pp}" fill="none" stroke="#7a2438" stroke-width="2"/><path d="${gp}" fill="none" stroke="#165b36" stroke-width="2" opacity="0.6"/>`;
+  let ep = `M${hx(0)},${hy(0)}`; sorted.forEach((v, i) => { ep += `H${hx(v).toFixed(1)}V${hy((i + 1) / sorted.length).toFixed(1)}`; }); ep += `H${hx(smax)}`;
+  s += `<path d="${ep}" fill="none" stroke="${C.accent}" stroke-width="1.8"/>`;
+  const near = dG < dP, at = near ? atG : atP, cv = near ? cG(at) : cP(at); let emp = 0; while (emp < sorted.length && sorted[emp] <= at) emp++;
+  s += `<line x1="${hx(at)}" x2="${hx(at)}" y1="${hy(cv)}" y2="${hy(emp / sorted.length)}" stroke="${C.ink}" stroke-width="1.5"/><text x="${hx(at) + 5}" y="${(hy(cv) + hy(emp / sorted.length)) / 2 + 3}" fill="${C.ink}">largest gap to ${near ? 'GOE' : 'Poisson'}</text>`;
   for (const v of [0, 1, 2, 3]) s += `<text x="${hx(v)}" y="${B2 + 13}" text-anchor="middle">${v}</text>`;
   s += `<text x="${W - R}" y="${B2 + 25}" text-anchor="end">s</text>`;
   svg.innerHTML = s;
-  const sorted = ss.slice().sort((a, b) => a - b); let dP = 0, dG = 0;
-  sorted.forEach((v, i) => { const e1 = (i + 1) / sorted.length, e0 = i / sorted.length, cP = 1 - Math.exp(-v), cG = 1 - Math.exp(-Math.PI * v * v / 4); dP = Math.max(dP, Math.abs(e1 - cP), Math.abs(e0 - cP)); dG = Math.max(dG, Math.abs(e1 - cG), Math.abs(e0 - cG)); });
   const repeats = n - lev.length, weylErr = (n - weyl(lam[n - 1])) / n;
   $('eigInfo').textContent = n < 40 ? 'Use more modes to see the statistics.' :
-    `Spacings look ${dG < dP ? 'chaotic (closer to GOE)' : 'regular (closer to Poisson)'}: distance to GOE ${dG.toFixed(3)}, to Poisson ${dP.toFixed(3)}.${repeats > 0.05 * n ? ` ${Math.round(100 * repeats / n)}% of the modes repeat another's eigenvalue (a symmetric shape); each is counted once.` : ''} Weyl's law, from the area and perimeter alone, predicts the mode count to within ${Math.abs(100 * weylErr).toFixed(1)}%.`;
+    `Spacings look ${dG < dP ? 'chaotic (closer to GOE)' : 'regular (closer to Poisson)'}: largest gap to GOE ${dG.toFixed(3)}, to Poisson ${dP.toFixed(3)}.${repeats > 0.05 * n ? ` ${Math.round(100 * repeats / n)}% of the modes repeat another's eigenvalue (a symmetric shape); each is counted once. Mixing symmetry classes makes a shape look more regular than it is; compare the stadium with the quarter stadium.` : ''} Weyl's law, from the area and perimeter alone, predicts the mode count to within ${Math.abs(100 * weylErr).toFixed(1)}%.`;
 }
 function showModeInfo() {
   const el = $('modeInfo'); if (!el) return;
