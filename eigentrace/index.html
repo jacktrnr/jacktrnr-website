@@ -181,7 +181,9 @@ legend { padding: 0 5px; color: var(--burgundy); font: bold 10px var(--font-mono
 .mk.on { background: var(--yellow); border-style: inset; transform: translateY(1px); }
 .mk.sel { box-shadow: 0 0 0 2px var(--burgundy); }
 .mk.off { opacity: .35; }
-.mk.wait em { opacity: .45; }
+.mk.wait { color: #7d8a81; background: repeating-linear-gradient(135deg, #e4e9e5 0 4px, #d3dbd5 4px 8px); border-color: #d9e0db; }
+.mk.wait b { color: #7d8a81; } .mk.wait canvas, .mk.wait em { opacity: .4; }
+#mmDamp.on { color: #fff; background: var(--navy); border-style: inset; }
 @media (max-width: 860px) { .mm-body { grid-template-columns: minmax(0, 1fr); } .mm-stage canvas.sq { width: min(100%, 420px); } }
 @media (max-width: 600px) {
   .mk-row { gap: 3px; } .mk-row:nth-child(2) { margin-left: 10px; } .mk-row:nth-child(3) { margin-left: 16px; } .mk-row:nth-child(4) { margin-left: 24px; }
@@ -567,6 +569,7 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
         <button id="mmSpread" type="button">Spread evenly</button>
         <button id="mmClearStrikes" class="ghost" type="button">Clear</button>
       </div>
+      <button id="mmDamp" type="button" title="Hold the space bar, or hold this button">Hold to damp (space bar)</button>
       <p class="small" id="mmHelp" style="margin: 0"></p>
       <p class="meta" id="mmStatus" style="margin: 0"></p>
     </div>
@@ -2798,6 +2801,13 @@ const mkLabel = (c) => MK_LABEL[c] || c.replace(/^(Key|Digit)/, '');
 const NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
 function noteOf(f) { const m = 69 + 12 * Math.log2(f / 440), n = Math.round(m); return { name: NOTE_NAMES[(n % 12 + 12) % 12] + (Math.floor(n / 12) - 1), cents: Math.round((m - n) * 100), snapped: 440 * 2 ** ((n - 69) / 12) }; }
 const music = { open: false, mode: 'modes', bank: 0, sel: null, prog: {}, progKey: '', clips: new Map(), gen: 0, voices: [], scale: 1e-9, bus: null, builtN: 0, lastRebuild: 0, field: null, flash: new Map() };
+const DAMP_TAU = 0.08; // seconds: how fast a hand on the drum quiets it
+music.notes = new Set(); music.damper = false;
+function damper(on) { // hold the space bar (or the button): everything sounding fades fast, like resting a hand on the drum
+  if (music.damper === on) return; music.damper = on; $('mmDamp').classList.toggle('on', on);
+  const ctx = audio(); if (!ctx) return; const t = ctx.currentTime;
+  for (const { gn } of music.notes) { const g = gn.gain, v = g.value; g.cancelScheduledValues(t); g.setValueAtTime(v, t); if (on) g.setTargetAtTime(0, t, DAMP_TAU); }
+}
 const ringScale = () => Math.pow(10, (+$('mmRing').value - 50) / 30); // > 1 rings longer
 function musicModes() { // the modes the keys play, in order; optionally one per pitch
   const out = []; if (!nModes) return out;
@@ -2818,10 +2828,13 @@ function modeDecay(k) { const { z0, z1 } = damping(), w1 = 2 * Math.PI * +$('f0'
 function shapeId() { return domain ? 'smooth:' + domain.key : 'px:' + G + ':' + maskKey(); }
 function progLoad() {
   const id = shapeId(); if (music.progKey === id) return; music.progKey = id; music.prog = {};
-  try { const s = localStorage.getItem('eigentrace:strikes:' + id); if (s) music.prog = JSON.parse(s) || {}; } catch (e) {}
-  if (!Object.keys(music.prog).length) progLayout(false);
+  try { const s = localStorage.getItem('eigentrace:strikes:v2:' + id); if (s) music.prog = JSON.parse(s) || {}; } catch (e) {}
+  music.needInit = !Object.keys(music.prog).length; progInit();
 }
-function progSave() { try { localStorage.setItem('eigentrace:strikes:' + music.progKey, JSON.stringify(music.prog)); } catch (e) {} }
+function progInit() { // a shape's first strikes: random hits, keys ordered by loudest mode (waits until modes exist)
+  if (!music.needInit || !nModes || !heat || !basis || basis.n !== heat.n) return; music.needInit = false; progLayout(true);
+}
+function progSave() { try { localStorage.setItem('eigentrace:strikes:v2:' + music.progKey, JSON.stringify(music.prog)); } catch (e) {} }
 function insidePoints(n, rnd) { const pts = []; for (let t = 0; t < 40 * n && pts.length < n; t++) { const x = rnd(), y = rnd(); if (insideAt(x, y)) pts.push([x, y]); } return pts; }
 function progLayout(random) { // 45 strikes spread over the shape; "evenly" also lays them out like the keyboard (number row at the top)
   let seed = random ? (Math.random() * 2147483646 + 1) | 0 : 4242; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -2865,6 +2878,7 @@ function strikeDominant(p) { // { k, f }: the strike's loudest mode, energies of
 // ---- building the clips ----
 function musicBuild(codes) {
   const ctx = audio(); if (!ctx || !nModes || !basis) return;
+  if (music.needInit && music.mode === 'strikes') { progInit(); codes = null; } // modes arrived: make the first random layout now
   const full = !codes; if (full) { music.gen++; music.clips.clear(); codes = MK_CODES; music.builtN = nModes; music.lastRebuild = performance.now(); }
   const gen = music.gen, items = [];
   for (const code of codes) {
@@ -2902,7 +2916,9 @@ function musicPlay(i) {
   const code = MK_CODES[i], t = musicTarget(i), el = music.keyEls[i]; if (!t) return;
   el.classList.add('on'); clearTimeout(music.flash.get(i)); music.flash.set(i, setTimeout(() => el.classList.remove('on'), 160));
   const ctx = audio(), b = music.clips.get(code); if (!ctx || !b) return;
-  const src = ctx.createBufferSource(); src.buffer = b; src.connect(musicBus()); src.start();
+  const src = ctx.createBufferSource(), gn = ctx.createGain(); src.buffer = b; src.connect(gn); gn.connect(musicBus()); src.start();
+  const note = { gn }; music.notes.add(note); src.onended = () => music.notes.delete(note);
+  if (music.damper) gn.gain.setTargetAtTime(0, ctx.currentTime + 0.02, DAMP_TAU); // a hand on the drum: short and muffled
   const v = { t0: performance.now(), code }; if (music.mode === 'modes') v.k = t.k; else { v.c = projectBump(t.x, t.y, Math.max(t.s, hammerSigma()), null); v.x = t.x; v.y = t.y; v.s = t.s; }
   music.voices.push(v); if (music.voices.length > 24) music.voices.shift();
 }
@@ -2949,8 +2965,8 @@ function musicModeSet(m) {
   music.mode = m; $('mmModes').classList.toggle('on', m === 'modes'); $('mmStrikes').classList.toggle('on', m === 'strikes');
   $('mmModeCtl').hidden = m !== 'modes'; $('mmStrikeCtl').hidden = m !== 'strikes'; $('mmView').classList.toggle('picking', m === 'strikes');
   $('mmHelp').textContent = m === 'modes'
-    ? 'Each key plays one mode of the shape: the number row has the lowest notes, then the Q, A and Z rows. ← and → (or ◀ ▶) move to the next 45 modes. Drum modes are not in tune with each other; "Snap to piano notes" rounds each to the nearest note (not physical).'
-    : 'Each key hits the drum at its own spot, with its own hammer. Pick a key (click it), then click the drum to move its hit there. Randomize scatters all 45 hits with different hammers and puts them in order of pitch: each key is ranked by its hit’s loudest mode, lowest on the number row (hits with the same loudest mode go from darker to brighter). Your keys are saved for this shape.';
+    ? 'Each key plays one mode of the shape: the number row has the lowest notes, then the Q, A and Z rows. ← and → (or ◀ ▶) move to the next 45 modes. Drum modes are not in tune with each other; "Snap to piano notes" rounds each to the nearest note (not physical). Hold the space bar to damp, like resting a hand on the drum.'
+    : 'Each key hits the drum at its own spot, with its own hammer. Pick a key (click it), then click the drum to move its hit there. Randomize scatters all 45 hits with different hammers and puts them in order of pitch: each key is ranked by its hit’s loudest mode, lowest on the number row (hits with the same loudest mode go from darker to brighter). Your keys are saved for this shape. Hold the space bar to damp, like resting a hand on the drum.';
   if (m === 'strikes') progLoad();
   music.voices = []; musicBuild();
 }
@@ -2961,7 +2977,7 @@ function openMusic() {
   musicModeSet(music.mode); $('mmClose').focus();
 }
 function closeMusic() {
-  if (!music.open) return; music.open = false; music.voices = [];
+  if (!music.open) return; damper(false); music.open = false; music.voices = [];
   $('musicModal').hidden = true; document.body.style.overflow = ''; modesDirty = true; $('dvMusic').focus();
 }
 function showMusicSliders() {
@@ -2996,19 +3012,26 @@ window.addEventListener('keydown', (e) => {
   const i = MK_IDX[e.code];
   if (i != null) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) musicPlay(i); return; }
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); if (music.mode === 'modes') musicBank(e.key === 'ArrowRight' ? 1 : -1); return; }
-  if (e.code === 'Space' || e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); }
+  if (e.code === 'Space') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) damper(true); return; }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); }
 }, true);
+window.addEventListener('keyup', (e) => { if (music.open && e.code === 'Space') { e.preventDefault(); e.stopPropagation(); damper(false); } }, true);
+window.addEventListener('blur', () => damper(false));
+$('mmDamp').addEventListener('pointerdown', (e) => { e.preventDefault(); damper(true); });
+for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('mmDamp').addEventListener(ev, () => damper(false));
 // ---- the picture: the shape moving with exactly what is sounding (slowed down, like the Drum view) ----
 function renderMusic() {
   const cv = $('mmView'), w = fitCanvas(cv), x = cv.getContext('2d');
   if (!nModes || resG !== G || !heat) { x.fillStyle = rgb(C.void); x.fillRect(0, 0, w, w); return; }
   if (nModes !== music.builtN && performance.now() - music.lastRebuild > (basis.prog && basis.prog.finished ? 0 : 2500)) { musicKeysPaint(); musicBuild(); } // more modes arrived
   const now = performance.now(), { z0, z1 } = damping(), w1 = 2 * Math.PI * 0.9, rs = ringScale(), coef = new F(nModes);
-  music.voices = music.voices.filter(v => now - v.t0 < 9000);
+  const dtR = Math.min(0.1, (now - (music.lastT || now)) / 1000); music.lastT = now;
+  if (music.damper) for (const v of music.voices) v.held = (v.held || 0) + dtR;
+  music.voices = music.voices.filter(v => now - v.t0 < 9000 && (v.held || 0) < 2);
   for (const v of music.voices) {
-    const t = (now - v.t0) / 1000;
-    if (v.k != null) { if (v.k >= nModes) continue; const r = vals[v.k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r) / rs; coef[v.k] += Math.exp(-g * t) * Math.sin(om * t + Math.PI / 2) / (basis.amax[v.k] || 1); }
-    else { const n = Math.min(nModes, v.c.length); for (let k = 0; k < n; k++) { const r = vals[k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r) / rs; coef[k] += v.c[k] * Math.exp(-g * t) * Math.sin(om * t) / om; } }
+    const t = (now - v.t0) / 1000, hf = Math.exp(-(v.held || 0) / 0.2); // the hand's extra fade, slowed to match the picture
+    if (v.k != null) { if (v.k >= nModes) continue; const r = vals[v.k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r) / rs; coef[v.k] += hf * Math.exp(-g * t) * Math.sin(om * t + Math.PI / 2) / (basis.amax[v.k] || 1); }
+    else { const n = Math.min(nModes, v.c.length); for (let k = 0; k < n; k++) { const r = vals[k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r) / rs; coef[k] += hf * v.c[k] * Math.exp(-g * t) * Math.sin(om * t) / om; } }
   }
   if (!music.field || music.field.length !== G * G) music.field = new F(G * G);
   modalField(coef, music.field, 0.005 * music.scale);
