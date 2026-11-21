@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Eigendrum — Jackson Turner</title>
-<meta name="description" content="Dirichlet eigenmodes of drawn pixel shapes, exact Bessel and Lamé domains, and shapes from my undergrad thesis. Hit them, heat them, watch a quantum particle bounce around inside, or play them as a drum.">
+<meta name="description" content="Draw a shape and see its Dirichlet eigenmodes. Hear it as a drum, watch heat diffuse through it, and run classical and quantum billiards inside it. Exact Bessel and Lamé modes, finite elements, and the method from my undergrad thesis.">
 <meta name="author" content="Jackson Turner">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>∇</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -84,10 +84,19 @@ h1 { margin: 0 0 10px; color: var(--navy-dark); font: bold 36px/1 var(--font-dis
 .mode-info b { font: bold 18px var(--font-display); color: var(--navy-dark); }
 @media (max-width: 860px) {
   .stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "shape" "view" "side"; }
-  .shape-panel { display: flex; }
+  .shape-panel { display: flex; flex-direction: column; align-items: stretch; }
+  .shape-panel > #editor { width: min(100%, 340px); align-self: center; }
 }
+@media (max-width: 600px) { /* phones: chart text stays readable when the 600-wide charts shrink to the screen */
+  svg.spectrum text { font-size: 14px; }
+  .ctl-grid select { min-width: 0; width: 100%; }
+  .tabs button { padding: 6px 9px; }
+  label:has(> #preset) { display: flex; width: 100%; }
+  #preset { flex: 1 1 auto; min-width: 0; width: 100%; }
+  label:has(> #dmShape) { display: flex; width: 100%; }
+  #dmShape { flex: 1 1 auto; min-width: 0; width: 100%; }
 }
-.panel { background: var(--panel); border: 1px solid #96a79a; box-shadow: 2px 2px 0 #d5ddd7; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* (a .panel rule used to sit here; a stray brace above it meant browsers always dropped it, and the layout was built without it) */
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: -12px -12px 2px; padding: 5px 10px; background: linear-gradient(90deg, #dce6df, #f8f8f4); border-bottom: 1px solid #a5b5a9; min-height: 34px; }
 h2 { margin: 0; color: var(--navy-dark); font: bold 18px var(--font-display); }
 .meta { font: 11px var(--font-mono); color: var(--muted); }
@@ -189,7 +198,7 @@ td.err { color: var(--muted); font-size: 11px; }
     <div>
       <p class="eyebrow" id="eyebrow">Interactive · from my undergrad thesis</p>
       <h1>Eigendrum</h1>
-      <p class="lede">Draw a shape, or pick one from my undergrad thesis. You see how it vibrates right away. Then you can hit it, heat it, play it as a drum, or drop a quantum particle inside and watch it bounce around: a quantum billiard, solved with the Schrödinger equation.</p>
+      <p class="lede">Draw a shape or pick one from my undergrad thesis and see its <a href="https://en.wikipedia.org/wiki/Dirichlet_eigenvalue" target="_blank" rel="noopener">eigenmodes</a>. Hear it as a drum, watch <a href="https://en.wikipedia.org/wiki/Heat_equation" target="_blank" rel="noopener">heat diffuse</a>, and run classical and quantum <a href="https://en.wikipedia.org/wiki/Dynamical_billiards" target="_blank" rel="noopener">billiards</a> inside it. Side plots show the <a href="https://en.wikipedia.org/wiki/Lyapunov_exponent" target="_blank" rel="noopener">Lyapunov exponent</a>, <a href="https://en.wikipedia.org/wiki/Husimi_Q_representation" target="_blank" rel="noopener">Husimi functions</a>, nodal domain counts, and the <a href="https://en.wikipedia.org/wiki/Hearing_the_shape_of_a_drum" target="_blank" rel="noopener">area and perimeter recovered from the spectrum</a>.</p>
     </div>
     <div class="status" id="status" role="status"><span class="dot"></span><span id="statusText">starting solver…</span></div>
   </header>
@@ -334,7 +343,7 @@ td.err { color: var(--muted); font-size: 11px; }
     <section class="panel side-panel" id="sidePanel" aria-labelledby="side-h">
       <div class="panel-head"><h2 id="side-h">Sound</h2><span class="meta" id="sideSub">what you hear from the last hit</span></div>
       <div class="side" data-side="drum">
-        <div class="legend"><span><i style="background: var(--accent)"></i>modes computed exactly</span><span><i style="background: #7a2438"></i>provisional Lanczos estimate (only while modes are still computing)</span><span><i style="background: none; border-top: 2px dashed var(--ink)"></i>hammer weighting</span><span>dotted: where a string’s overtones would be</span></div>
+        <div class="legend"><span><i style="background: var(--accent)"></i>modes computed exactly</span><span><i style="background: none; border-top: 2px dashed var(--ink)"></i>hammer weighting</span><span>dotted: where a string’s overtones would be</span></div>
         <svg class="spectrum" id="spectrum" viewBox="0 0 600 304" role="img" aria-label="Loudness and ring time of each note from the last hit"></svg>
         <div class="meta" id="specInfo"></div>
         <div class="meta">Spectrogram of the last hit: time runs across, pitch goes up (log scale), darker is louder. High notes fade first.</div>
@@ -425,7 +434,7 @@ td.err { color: var(--muted); font-size: 11px; }
           <p class="small" style="margin:0">In a chaotic billiard the gap grows by the same factor every bounce, a straight line on this log plot. Its slope is the Lyapunov exponent. In a regular one the gap only grows in proportion to the number of bounces, which bends over flat. When the gap gets large the ghost restarts next to the ball, so you get a sawtooth.</p>
         </div>
         <div id="qSide" class="side">
-        <p class="small" style="margin:0">A quantum billiard: a particle trapped in the shape, iψ<sub>t</sub> = −Δψ with ψ = 0 on the edge. Click the drum to drop a wave packet; drag before letting go to give it momentum. This runs on the full grid or mesh, so every mode it can hold is included.</p>
+        <p class="small" style="margin:0">A quantum billiard: a particle trapped in the shape, iψ<sub>t</sub> = −Δψ with ψ = 0 on the edge. Click the drum to drop a wave packet; drag before letting go to give it momentum. When the computed modes hold the whole packet, ψ evolves exactly in them. Otherwise the full grid or mesh is stepped in time, and it switches over once enough modes have arrived.</p>
         <fieldset>
           <legend>Wave packet</legend>
           <div class="ctl-grid">
@@ -493,7 +502,7 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
       <h3>Sound and heat</h3>
       <ul>
         <li>A hit is a small bump of width σ. Mode k is excited in proportion to e<sup>−λ<sub>k</sub>σ²/2</sup>, so a wider hammer reaches fewer high modes and sounds darker. This is the dashed curve on the chart. Modes past λ = 18.4/σ² are below −80 dB and are left out.</li>
-        <li>Exact shapes add up every mode the hit reaches, often more than a thousand. Pixel and mesh shapes use the modes on screen plus a Lanczos estimate of the rest, so no frequencies are left out.</li>
+        <li>Exact shapes add up every mode the hit reaches, often more than a thousand. Pixel and mesh shapes use the modes computed so far. They are found in the background, lowest first, and each hit uses all the ones that are ready.</li>
         <li><b>Across the room</b> is what a microphone a few meters away hears. Sound comes from the air the drum pushes, so modes whose up and down halves cancel are almost silent. You hear fewer notes and a sharper attack.</li>
         <li><b>Contact mic</b> is a sensor stuck to the drum where you hit it. It picks up every mode the hit excites, weighted toward the low ones, so it sounds darker and fuller.</li>
         <li>For heat, the edges stay at 0° and each source stays at its own temperature. “Steady state” jumps straight to where the temperature settles.</li>
@@ -513,7 +522,7 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
     <label for="dmBrush">Brush <select id="dmBrush"><option value="0.5">1 px</option><option value="1.5">3 px</option><option value="2.6">5 px</option><option value="4.2">9 px</option></select></label>
     <label for="dmShape">Start from <select id="dmShape"></select></label>
     <button id="dmClear" class="ghost" type="button">Clear</button>
-    <span class="small">Shift-drag or right-drag erases. The drum updates as you draw.</span>
+    <span class="small">Use Erase to remove pixels (on a computer, shift-drag also erases). The drum updates as you draw.</span>
     <button id="dmDone" class="primary" type="button">Done</button>
   </div>
   <div class="dm-stage" id="dmStage"></div>
@@ -1305,7 +1314,7 @@ function postRefine() { // progress, plus the newly computed modes (as values at
   self.postMessage({ type: 'basis', gen: R.gen, start: from, lams, Y, done: R.locked.length, lamDone: R.lamDone, target: R.target, count: R.count, finished: R.finished, capped: R.capped, ms: performance.now() - R.t0 }, [Y.buffer]);
 }
 
-// ---------- strikes: exact low modes + Lanczos–Gauss quadrature of the rest ----------
+// ---------- strikes: the modes computed so far, each with its exact weight ----------
 function tqli(d, e, n, z0) { // implicit QL; z0 (optional) tracks the first row of the eigenvector matrix
   for (let i = 1; i < n; i++) e[i - 1] = e[i];
   e[n - 1] = 0;
@@ -1332,20 +1341,6 @@ function tqli(d, e, n, z0) { // implicit QL; z0 (optional) tracks the first row 
   }
   return d;
 }
-function lanczosMeasure(op, v0, m) { // Gauss quadrature of μ_v(λ) = Σ_k (v·y_k)² δ(λ − λ_k)
-  const n = op.n, nrm2 = dot(v0, v0, n); if (!(nrm2 > 1e-300)) return { th: [], w: [] };
-  let v = new F(n), vp = new F(n), w = new F(n); const s0 = 1 / Math.sqrt(nrm2); for (let i = 0; i < n; i++) v[i] = v0[i] * s0;
-  const al = [], be = [];
-  for (let j = 0; j < Math.min(m, n); j++) {
-    matvec(op, v, w); const a = dot(w, v, n); al.push(a);
-    const bp = j ? be[j - 1] : 0; for (let i = 0; i < n; i++) w[i] -= a * v[i] + bp * vp[i];
-    const b = Math.sqrt(dot(w, w, n)); if (b < 1e-10 * Math.abs(a) || j === Math.min(m, n) - 1) break;
-    be.push(b); const t = vp; vp = v; v = w; w = t; for (let i = 0; i < n; i++) v[i] /= b;
-  }
-  const k = al.length, d = F.from(al), e = new F(k), z = new F(k); for (let i = 1; i < k; i++) e[i] = be[i - 1]; z[0] = 1;
-  tqli(d, e, k, z);
-  return { th: Array.from(d), w: Array.from(z, q => nrm2 * q * q) };
-}
 function mergeParts(parts) {
   parts.sort((a, b) => a.lam - b.lam); const out = [];
   for (const p of parts) { const q = out[out.length - 1]; if (q && q.exact && p.exact && Math.abs(p.lam - q.lam) <= 1e-6 * p.lam) { q.A += p.A; q.mult++; } else out.push({ ...p, mult: 1 }); }
@@ -1367,15 +1362,8 @@ function opStrike(a, x, y, sigma, listener, count) {
   const complete = count ? YY.length >= count : !!(R && R.lamDone >= Math.min(lamCut, a.op.bound) * (1 - 1e-12));
   YY = YY.slice(0, use); LL = LL.slice(0, use);
   for (let k = 0; k < YY.length; k++) { const c = dot(b, YY[k], n), w = dot(q, YY[k], n); parts.push({ lam: LL[k], A: c * w, exact: true }); axpy(-c, YY[k], b, n); axpy(-w, YY[k], q, n); }
-  const m = 300; let nTail = 0, lamMax = LL[LL.length - 1] || 0;
-  if (complete) { const merged = mergeParts(parts.filter(p => p.lam > 0)); return { parts: merged, info: { exact: YY.length, tail: 0, lamMax, sigma, provisional: false, modeLimit: count && lamMax < lamCut ? lamMax : null } }; }
-  const add = (L, s) => { L.th.forEach((t, j) => { if (L.w[j] * Math.abs(s) > 0) { parts.push({ lam: t, A: s * L.w[j], exact: false }); nTail++; lamMax = Math.max(lamMax, t); } }); };
-  if (listener === 'far') {
-    const pl = new F(n), mi = new F(n); for (let i = 0; i < n; i++) { pl[i] = b[i] + q[i]; mi[i] = b[i] - q[i]; }
-    add(lanczosMeasure(op, pl, m), 0.25); add(lanczosMeasure(op, mi, m), -0.25);
-  } else add(lanczosMeasure(op, b, m), 1);
-  const merged = mergeParts(parts.filter(p => p.lam > 0));
-  return { parts: merged, info: { exact: YY.length, tail: nTail, lamMax, sigma, provisional: true, modeLimit: null } };
+  const lamMax = LL[LL.length - 1] || 0, merged = mergeParts(parts.filter(p => p.lam > 0));
+  return { parts: merged, info: { exact: YY.length, tail: 0, lamMax, sigma, provisional: false, partial: !complete, modeLimit: count && lamMax < lamCut ? lamMax : null } };
 }
 function exactStrike(a, x, y, sigma, listener, count) {
   const lamC = Math.min(18.4 / (sigma * sigma), 60000);
@@ -1608,8 +1596,13 @@ function requestSolve(warm) {
 }
 // ---------- the mode basis ----------
 const rasterCache = new Map();
+function basisCap(m) { // room for every mode up to the hammer cutoff (Weyl: N ≈ Aλ/4π), so the store never has to grow and copy mid-animation
+  let A = 0; if (heat && heat.n === m.n) for (let i = 0; i < heat.n; i++) A += heat.Ml[i]; else if (!domain && mask) { for (let i = 0; i < mask.length; i++) A += mask[i]; A /= G * G; } else A = 0.6;
+  let est = Math.ceil(1.3 * A * (18.4 / hammerSigma() ** 2) / (4 * Math.PI)) + 64; if (Ksel !== Infinity) est = Math.min(est, Ksel + 8);
+  return Math.max(64, m.K, Math.min(est, m.n));
+}
 function basisInit(m) { // first batch from a solve
-  const n = m.n; basis = { n, count: 0, lam: new F(Math.max(64, m.K)), Y: new Float32Array(Math.max(64, m.K) * n), amax: new F(Math.max(64, m.K)), labels: [], prog: null };
+  const n = m.n, cap = basisCap(m); basis = { n, count: 0, lam: new F(cap), Y: new Float32Array(cap * n), amax: new F(cap), labels: [], prog: null };
   rasterCache.clear(); basisAppend(0, m.vals, m.Y, m.labels);
 }
 function basisAppend(start, lams, Y, labels) {
@@ -1653,7 +1646,7 @@ function showProgress(m) {
   if (m.finished) {
     bar.hidden = true; setStatus($('statusText').textContent.replace(/ · computing.*$/, ''), false);
     if (info && (m.exact || (domain && domain.method === 'exact'))) { info.textContent = `Sound: built from ${nModes.toLocaleString()} modes, straight from the exact formulas${want ? '' : ', every mode up to the hammer cutoff'}.`; return; }
-    if (info) info.textContent = m.capped ? `Sound: ${done.toLocaleString()} exact modes (up to ${fOf(m.lamDone)}, the memory limit); a Lanczos estimate fills in above that.` : `Sound: built from ${nModes.toLocaleString()} exact modes${want ? '' : `, every mode up to the hammer cutoff (${fOf(18.4 / hammerSigma() ** 2)})`}, computed in ${(m.ms / 1000).toFixed(1)} s.`;
+    if (info) info.textContent = m.capped ? `Sound: ${done.toLocaleString()} exact modes, up to ${fOf(m.lamDone)} (the memory limit).` : `Sound: built from ${nModes.toLocaleString()} exact modes${want ? '' : `, every mode up to the hammer cutoff (${fOf(18.4 / hammerSigma() ** 2)})`}, computed in ${(m.ms / 1000).toFixed(1)} s.`;
     return;
   }
   bar.hidden = false;
@@ -1661,7 +1654,7 @@ function showProgress(m) {
   $('loadFill').style.width = `${Math.round(100 * frac)}%`;
   $('loadText').textContent = want ? `Computing modes: ${done.toLocaleString()} of ${want.toLocaleString()}` : `Computing modes: ${done.toLocaleString()} so far, up to ${fOf(m.lamDone)} of ${fOf(m.target)}`;
   setStatus($('statusText').textContent.replace(/ · computing.*$/, '') + ' · computing modes', true);
-  if (info) info.textContent = `Sound: using the ${Math.min(done, nModes).toLocaleString()} modes ready so far. Until the rest arrive, a provisional Lanczos estimate stands in for them.`;
+  if (info) info.textContent = `Sound: using the ${Math.min(done, nModes).toLocaleString()} modes ready so far. Each hit uses more as they arrive.`;
 }
 function setModes(m) { // a new shape or a new solve: start the basis afresh
   basisInit(m); resG = G; lastMs = m.ms; reqDone++;
@@ -1759,6 +1752,15 @@ function renderModes() {
 }
 
 // ---------- strip ----------
+const stripQueue = new Set();
+function stripWork(ms) {
+  const t0 = performance.now(), strip = $('strip');
+  for (const k of stripQueue) {
+    stripQueue.delete(k); const b = strip.children[k]; if (!b || k >= nModes) continue;
+    const c = b.querySelector('canvas'), r = modeRaster(k); paintField(r, maxAbs(r), C.div, true, c.getContext('2d'), c);
+    if (performance.now() - t0 > ms) break;
+  }
+}
 function drawStrip() {
   const strip = $('strip'); if (!C.void) return;
   const ns = nStrip();
@@ -1773,7 +1775,7 @@ function drawStrip() {
   for (let k = 0; k < ns; k++) {
     const b = strip.children[k], c = b.querySelector('canvas'), sz = domain ? 120 : G;
     if (c.width !== sz) { c.width = sz; c.height = sz; }
-    const r = modeRaster(k); paintField(r, maxAbs(r), C.div, true, c.getContext('2d'), c);
+    stripQueue.add(k); // painted a few per frame by stripWork, so a full strip never freezes the animation
     b.querySelector('em').textContent = vals[k].toFixed(1);
     b.classList.toggle('sel', k === selected);
     b.setAttribute('aria-label', `Mode ${k + 1}, lambda ${vals[k].toFixed(2)}`);
@@ -1960,15 +1962,15 @@ function drawNodalChart(force) {
 // ---------- Husimi function of a mode on the wall, over the classical Birkhoff map ----------
 let husCloud = null, husDrawn = '';
 function husClassical(segs) { // a few classical orbits, bounce coordinates only
-  if (husCloud && husCloud.key === domain.key) return husCloud.pts;
+  const hk = billPolys().key; if (husCloud && husCloud.key === hk) return husCloud.pts;
   let seed = 12345; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, pts = [];
   for (let o = 0; o < 10; o++) {
-    let x = 0.5, y = 0.5; for (let i = 0; i < 4000; i++) { x = rnd(); y = rnd(); if (SH.inGeom(domain.polys, x, y)) break; }
+    let x = 0.5, y = 0.5; for (let i = 0; i < 4000; i++) { x = rnd(); y = rnd(); if (insideAt(x, y)) break; }
     const a = 2 * Math.PI * rnd(), b = { x, y, vx: Math.cos(a), vy: Math.sin(a), trail: [[x, y]], last: -1, nb: 0, hits: [] };
     for (let i = 0; i < 2000 && b.hits.length < 1200; i++) { stepBall(b, 1e9, segs, true); keepInside(b); }
     for (let i = 0; i < b.hits.length; i++) pts.push(b.hits[i]);
   }
-  husCloud = { key: domain.key, pts }; return pts;
+  husCloud = { key: hk, pts }; return pts;
 }
 function husimiOf(k, segs) {
   const r = modeRaster(k), outer = segs.filter(g => g.outer), Ltot = outer[0].total, kk = Math.sqrt(vals[k]);
@@ -1978,8 +1980,8 @@ function husimiOf(k, segs) {
   for (let j = 0; j < M; j++) {
     const sj = (j + 0.5) * ds; while (gi < outer.length - 1 && outer[gi].cum + outer[gi].len < sj) gi++;
     const g = outer[gi], tl = (sj - g.cum) / g.len, px = g.ax + tl * g.ex, py = g.ay + tl * g.ey; let nx = -g.ey / g.len, ny = g.ex / g.len;
-    if (!SH.inGeom(domain.polys, px + 1e-3 * nx, py + 1e-3 * ny)) { nx = -nx; ny = -ny; }
-    if (!SH.inGeom(domain.polys, px + 2 * dl * nx, py + 2 * dl * ny)) continue;
+    if (!insideAt(px + 1e-3 * nx, py + 1e-3 * ny)) { nx = -nx; ny = -ny; }
+    if (!insideAt(px + 2 * dl * nx, py + 2 * dl * ny)) continue;
     const p1 = samp(px + dl * nx, py + dl * ny), p2 = samp(px + 2 * dl * nx, py + 2 * dl * ny); u[j] = (4 * p1 - p2) / (2 * dl);
   }
   const NQ = 200, NP = 100, H = new F(NQ * NP), sig = 1 / Math.sqrt(kk), win = Math.min(M / 2 - 1, Math.ceil(4 * sig / ds)); let hm = 0;
@@ -1999,7 +2001,7 @@ function drawHusimi() {
   const c = $('husimi'); if (!c || !nModes) return; const key = selected + '|' + reqDone + '|' + nModes; if (key === husDrawn) return; husDrawn = key;
   const x = c.getContext('2d'), W = c.width, Hh = c.height, L = 30, R = 6, T = 6, B = 20, pw = W - L - R, ph = Hh - T - B;
   x.fillStyle = '#fff'; x.fillRect(0, 0, W, Hh); x.font = '10px Courier New, monospace'; x.fillStyle = C.muted;
-  const segs = billSegments(); if (!segs || !heat) { x.fillText('Phase space needs a smooth outline: pick an exact or mesh shape.', L + 8, Hh / 2); $('husInfo').textContent = ''; return; }
+  const segs = billSegments(); if (!segs || !heat) { x.fillText('Draw a shape first.', L + 8, Hh / 2); $('husInfo').textContent = ''; return; }
   const { H, NQ, NP, hm } = husimiOf(selected, segs), im = x.createImageData(pw, ph), d = im.data, lut = C.seq;
   for (let yy = 0; yy < ph; yy++) for (let xx = 0; xx < pw; xx++) {
     const v = H[Math.min(NP - 1, Math.floor(yy / ph * NP)) * NQ + Math.min(NQ - 1, Math.floor(xx / pw * NQ))] / (hm || 1), k3 = Math.round(Math.min(1, Math.pow(v, 0.8)) * 255) * 3, q = 4 * (yy * pw + xx);
@@ -2060,9 +2062,15 @@ function modalWave(dt) {
   }
 }
 let nodeTmp = null;
-function modalField(coef, out) { // Σ coef_k φ_k on the points, then onto the screen
-  const n = basis.n; if (!nodeTmp || nodeTmp.length !== n) nodeTmp = new F(n); nodeTmp.fill(0);
-  for (let k = 0; k < coef.length; k++) { const a = coef[k]; if (Math.abs(a) < 1e-14) continue; const o = k * n, Y = basis.Y; for (let i = 0; i < n; i++) nodeTmp[i] += a * Y[o + i]; }
+function modalField(coef, out, tol = 0) { // Σ coef_k φ_k on the points, then onto the screen
+  // tol > 0: skip the smallest modes as long as together they can change no point by more than tol (|coef_k|·max|φ_k| summed)
+  const n = basis.n, K = coef.length; if (!nodeTmp || nodeTmp.length !== n) nodeTmp = new F(n); nodeTmp.fill(0);
+  let cut = -1;
+  if (tol > 0 && K > 64) {
+    const w = new Float32Array(K); for (let k = 0; k < K; k++) w[k] = Math.abs(coef[k]) * basis.amax[k];
+    w.sort(); let acc = 0; for (let j = 0; j < K; j++) { if (acc + w[j] > tol) break; acc += w[j]; cut = w[j]; }
+  }
+  for (let k = 0; k < K; k++) { const a = coef[k]; if (Math.abs(a) < 1e-14 || Math.abs(a) * basis.amax[k] <= cut) continue; const o = k * n, Y = basis.Y; for (let i = 0; i < n; i++) nodeTmp[i] += a * Y[o + i]; }
   heat.toRaster(nodeTmp, out);
 }
 
@@ -2161,7 +2169,7 @@ function qNormalize(R, I) { for (let i = 0; i < heat.n; i++) if (heat.fix[i]) { 
 function qPacket(x0, y0, kx, ky) {
   if (!heat) return; const n = heat.n, R = new F(n), I = new F(n), sg = Math.max(qSigma(), 2 * heat.h);
   for (let i = 0; i < n; i++) { const dx = heat.xy[2 * i] - x0, dy = heat.xy[2 * i + 1] - y0, a = Math.exp(-(dx * dx + dy * dy) / (4 * sg * sg)), ph = kx * dx + ky * dy; R[i] = a * Math.cos(ph); I[i] = a * Math.sin(ph); }
-  qNormalize(R, I); qs = { R, I, t: 0, k: Math.hypot(kx, ky) }; qs0 = { R: F.from(R), I: F.from(I) }; qScale = 0; survReset();
+  qNormalize(R, I); qs = { R, I, t: 0, k: Math.hypot(kx, ky) }; qs0 = { R: F.from(R), I: F.from(I) }; qScale = 0; survReset(); qTryModal();
 }
 function qDefaultPoint() { // interior node nearest the centroid of the shape
   let cx = 0, cy = 0; for (let i = 0; i < heat.n; i++) { cx += heat.xy[2 * i]; cy += heat.xy[2 * i + 1]; } cx /= heat.n; cy /= heat.n;
@@ -2170,10 +2178,33 @@ function qDefaultPoint() { // interior node nearest the centroid of the shape
 }
 function qFromMode() {
   if (!heat || !nModes) return; const n = heat.n, R = Float64Array.from(modeNode(selected)), I = new F(n);
-  qNormalize(R, I); qs = { R, I, t: 0, k: Math.sqrt(vals[selected]) }; qs0 = { R: F.from(R), I: F.from(I) }; qScale = 0; survReset();
+  qNormalize(R, I); qs = { R, I, t: 0, k: Math.sqrt(vals[selected]) }; qs0 = { R: F.from(R), I: F.from(I) }; qScale = 0; survReset(); qTryModal();
+}
+// Exact evolution in the eigenmodes: ψ(t) = Σ c_k e^{−iλ_k t} φ_k. Used whenever the modes in use hold at least 99.9% of ψ;
+// it is unitary, has no time-step limit, and cannot blow up. Otherwise the full grid or mesh is stepped in time.
+const QCOVER = 0.999;
+function qTryModal() {
+  if (!qs || qs.modal || !basis || !nModes || basis.n !== heat.n) return false;
+  const n = heat.n, M = heat.Ml, { R, I } = qs, ar = new Float64Array(nModes), ai = new Float64Array(nModes); let tot = 0, cov = 0;
+  for (let i = 0; i < n; i++) tot += M[i] * (R[i] * R[i] + I[i] * I[i]);
+  for (let k = 0; k < nModes; k++) { const y = modeNode(k); let a = 0, b = 0; for (let i = 0; i < n; i++) { const w = M[i] * y[i]; a += w * R[i]; b += w * I[i]; } ar[k] = a; ai[k] = b; cov += a * a + b * b; }
+  qs.cover = cov / tot; qs.checked = basis.count;
+  if (!(qs.cover >= QCOVER)) return false;
+  const keep = []; for (let k = 0; k < nModes; k++) if (ar[k] * ar[k] + ai[k] * ai[k] > 1e-12 * cov) keep.push(k);
+  const sc = 1 / Math.sqrt(cov); // drop the last ≤0.1% and renormalize
+  qs.modal = { idx: Int32Array.from(keep), ar: Float64Array.from(keep, k => ar[k] * sc), ai: Float64Array.from(keep, k => ai[k] * sc), lam: Float64Array.from(keep, k => vals[k]), t0: qs.t };
+  qModalField(); return true;
+}
+function qModalField() { // rebuild ψ on the grid or mesh from the modes at time qs.t
+  const { idx, ar, ai, lam, t0 } = qs.modal, n = heat.n, R = qs.R, I = qs.I, tau = qs.t - t0; R.fill(0); I.fill(0);
+  for (let j = 0; j < idx.length; j++) {
+    const c = Math.cos(lam[j] * tau), sn = Math.sin(lam[j] * tau), cr = ar[j] * c + ai[j] * sn, cim = ai[j] * c - ar[j] * sn, y = modeNode(idx[j]);
+    for (let i = 0; i < n; i++) { R[i] += cr * y[i]; I[i] += cim * y[i]; }
+  }
 }
 function qMul(x, y) { const { n, rp, ci, kv, Ml, fix } = heat; for (let i = 0; i < n; i++) { if (fix[i]) { y[i] = 0; continue; } let t = 0; for (let q = rp[i]; q < rp[i + 1]; q++) t += kv[q] * x[ci[q]]; y[i] = t / Ml[i]; } }
 function qStep(dtPhys) {
+  if (qs.modal) { qs.t += dtPhys; qs.slow = false; qModalField(); return; }
   const n = heat.n, dtMax = 1.6 / heat.bound, { R, I } = qs; let m = Math.max(1, Math.ceil(dtPhys / dtMax)); qs.slow = m > 400;
   if (qs.slow) { m = 400; dtPhys = m * dtMax; } // a very stiff mesh: never take an unstable step; let time run slower instead
   const dt = dtPhys / m, tmp = new F(n);
@@ -2181,6 +2212,7 @@ function qStep(dtPhys) {
   qs.t += dtPhys;
 }
 function qStats() {
+  if (qs.modal) { const { ar, ai, lam } = qs.modal; let nrm = 0, e = 0; for (let j = 0; j < lam.length; j++) { const w = ar[j] * ar[j] + ai[j] * ai[j]; nrm += w; e += lam[j] * w; } return { nrm, e: e / nrm }; }
   const { n, rp, ci, kv, Ml } = heat, { R, I } = qs; let nrm = 0, e = 0;
   for (let i = 0; i < n; i++) { nrm += (R[i] * R[i] + I[i] * I[i]) * Ml[i]; let a = 0, b = 0; for (let q = rp[i]; q < rp[i + 1]; q++) { a += kv[q] * R[ci[q]]; b += kv[q] * I[ci[q]]; } e += R[i] * a + I[i] * b; }
   return { nrm, e: e / nrm };
@@ -2188,7 +2220,7 @@ function qStats() {
 function setQView(v) { qView = v; qScale = 0; for (const [id, k] of [['qvRe', 're'], ['qvAbs', 'abs'], ['qvAbs2', 'abs2']]) $(id).classList.toggle('on', k === v); }
 $('qvRe').onclick = () => setQView('re'); $('qvAbs').onclick = () => setQView('abs'); $('qvAbs2').onclick = () => setQView('abs2');
 $('qMode').onclick = () => { qEmpty = false; qFromMode(); };
-$('qRestart').onclick = () => { if (qs0 && heat && qs0.R.length === heat.n) { qEmpty = false; qs = { R: F.from(qs0.R), I: F.from(qs0.I), t: 0, k: 0 }; qScale = 0; if (surv) { surv.t = [0]; surv.p = [1]; } } };
+$('qRestart').onclick = () => { if (qs0 && heat && qs0.R.length === heat.n) { qEmpty = false; qs = { R: F.from(qs0.R), I: F.from(qs0.I), t: 0, k: 0 }; qScale = 0; if (surv) { surv.t = [0]; surv.p = [1]; } qTryModal(); } };
 $('qClear').onclick = () => { if (bmode === 'c') { balls = []; bBounces = 0; birkClear(); bClearFlag = true; if (dens) dens.fill(0); lyapReset(); return; } qEmpty = true; qs = null; qs0 = null; surv = null; };
 let bClearFlag = false;
 $('qPause').onclick = () => { if (bmode === 'c') { bPaused = !bPaused; $('qPause').textContent = bPaused ? 'Play' : 'Pause'; return; } qPaused = !qPaused; $('qPause').textContent = qPaused ? 'Play' : 'Pause'; };
@@ -2198,8 +2230,37 @@ const BALL_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#7a2438', '#6250d6', '#ed
 let bmode = 'q', balls = [], bseg = null, bKey = '', bPaused = false, bBounces = 0;
 const cSpeed = () => 0.05 * Math.pow(10, +$('cSpeed').value / 40), cTrail = () => Math.round(5 * Math.pow(10, +$('cTrail').value / 33));
 function cShowSliders() { $('cSpeedOut').textContent = `${cSpeed().toFixed(2)} box/s`; $('cTrailOut').textContent = `${cTrail()} bounces`; }
+let pxPolyCache = null;
+function pxOutline() { // the pixel staircase as closed loops of cell edges (collinear edges merged); the longest loop is the outer wall
+  const key = 'px|' + G + '|' + maskKey(); if (pxPolyCache && pxPolyCache.key === key) return pxPolyCache;
+  const at = (x, y) => x >= 0 && y >= 0 && x < G && y < G && mask[y * G + x], W1 = G + 1, out = new Map();
+  const addE = (x0, y0, x1, y1) => { const k = y0 * W1 + x0, e = y1 * W1 + x1, l = out.get(k); if (l) l.push(e); else out.set(k, [e]); };
+  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
+    if (!at(x, y)) continue;
+    if (!at(x, y - 1)) addE(x, y, x + 1, y); if (!at(x + 1, y)) addE(x + 1, y, x + 1, y + 1);
+    if (!at(x, y + 1)) addE(x + 1, y + 1, x, y + 1); if (!at(x - 1, y)) addE(x, y + 1, x, y);
+  }
+  const loops = [];
+  for (const k0 of out.keys()) {
+    while (out.get(k0).length) {
+      const vs = [k0]; let cur = out.get(k0).pop(), guard = 0;
+      while (cur !== k0 && guard++ < 1e6) { vs.push(cur); const l = out.get(cur); if (!l || !l.length) break; cur = l.pop(); }
+      const pts = vs.map(k => [(k % W1) / G, Math.floor(k / W1) / G]), P = [];
+      for (let i = 0; i < pts.length; i++) { // keep only the corners
+        const a = pts[(i + pts.length - 1) % pts.length], b = pts[i], c = pts[(i + 1) % pts.length];
+        if ((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]) !== 0) P.push(b);
+      }
+      if (P.length >= 4) loops.push(P);
+    }
+  }
+  const len = (P) => P.reduce((t, a, i) => t + Math.hypot(P[(i + 1) % P.length][0] - a[0], P[(i + 1) % P.length][1] - a[1]), 0);
+  loops.sort((a, b) => len(b) - len(a));
+  pxPolyCache = { key, outer: loops[0] || null, holes: loops.slice(1) }; return pxPolyCache;
+}
+function billPolys() { return domain ? { key: domain.key, outer: domain.polys.outer, holes: domain.polys.hole ? [domain.polys.hole] : [] } : pxOutline(); }
+function billPath(ctx, w) { const B = billPolys(); ctx.beginPath(); for (const poly of [B.outer, ...B.holes]) { if (!poly) continue; poly.forEach((p, i) => i ? ctx.lineTo(p[0] * w, p[1] * w) : ctx.moveTo(p[0] * w, p[1] * w)); ctx.closePath(); } }
 function billSegments() { // wall segments; the outer ones carry arclength for the Birkhoff map
-  if (!domain) return null; if (bKey === domain.key && bseg) return bseg;
+  const BP = billPolys(); if (!BP.outer) return null; if (bKey === BP.key && bseg) return bseg;
   const segs = [], add = (P, outer) => { let cum = 0; const start = segs.length; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]); if (len < 1e-12) continue; segs.push({ ax: a[0], ay: a[1], ex: b[0] - a[0], ey: b[1] - a[1], len, cum, outer }); cum += len; } if (outer) for (let j = start; j < segs.length; j++) segs[j].total = cum; };
   const smooth = (a, b) => { // vertex normals: averaged across a gentle bend (a sampled curve), kept apart at a real corner
     for (let j = a; j < b; j++) {
@@ -2208,9 +2269,10 @@ function billSegments() { // wall segments; the outer ones carry arclength for t
       if (Math.abs(turn) < 0.25) { const vx = ng[0] + nq[0], vy = ng[1] + nq[1], l = Math.hypot(vx, vy); g.n0 = [vx / l, vy / l]; q.n1 = g.n0; } else { g.n0 = ng; q.n1 = nq; }
     }
   };
-  add(domain.polys.outer, true); const nOuter = segs.length; smooth(0, nOuter);
-  if (domain.polys.hole) { add(domain.polys.hole, false); smooth(nOuter, segs.length); }
-  bseg = segs; bKey = domain.key; return segs;
+  add(BP.outer, true); smooth(0, segs.length);
+  for (const h of BP.holes) { const a0 = segs.length; add(h, false); smooth(a0, segs.length); }
+  if (bKey && bKey !== BP.key) { balls = []; bBounces = 0; birkClear(); lyapReset(); } // new walls: start the balls afresh
+  bseg = segs; bKey = BP.key; return segs;
 }
 function birkClear() { const c = $('birk'), x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.strokeStyle = '#c3cec6'; x.lineWidth = 1; x.beginPath(); x.moveTo(0, c.height / 2); x.lineTo(c.width, c.height / 2); x.stroke(); x.fillStyle = '#59665c'; x.font = '10px Courier New, monospace'; x.fillText('position along the wall →', 6, c.height - 6); x.fillText('bounce angle ↑', 6, 12); }
 function birkDot(sx, pt, color) { const c = $('birk'), x = c.getContext('2d'); x.fillStyle = color; x.fillRect(sx * c.width - 0.75, (1 - (pt + 1) / 2) * c.height - 0.75, 1.5, 1.5); }
@@ -2247,23 +2309,23 @@ function stepBall(b, dist, segs, quiet) {
   }
 }
 function keepInside(b) {
-  if (SH.inGeom(domain.polys, b.x, b.y)) return;
+  if (insideAt(b.x, b.y)) return;
   const q = b.trail[b.trail.length - 1] || insidePoint(); b.x = q[0]; b.y = q[1]; b.vx = -b.vx; b.vy = -b.vy; b.last = -1;
-  if (!SH.inGeom(domain.polys, b.x, b.y)) { const r = insidePoint(); b.x = r[0]; b.y = r[1]; b.trail = [[b.x, b.y]]; }
+  if (!insideAt(b.x, b.y)) { const r = insidePoint(); b.x = r[0]; b.y = r[1]; b.trail = [[b.x, b.y]]; }
 }
 function insidePoint() { // where the lowest mode peaks: always well inside, even for shapes with holes
   if (basis && heat && basis.count) return refPoint();
-  for (let i = 0; i < 2000; i++) { const x = Math.random(), y = Math.random(); if (SH.inGeom(domain.polys, x, y)) return [x, y]; }
+  for (let i = 0; i < 2000; i++) { const x = Math.random(), y = Math.random(); if (insideAt(x, y)) return [x, y]; }
   return [0.5, 0.5];
 }
 function renderClassical(dt) {
   const w = fitCanvas(view), segs = billSegments();
   vctx.fillStyle = rgb(C.void); vctx.fillRect(0, 0, w, w);
-  if (!segs) { $('overlay').textContent = 'classical billiards need a smooth outline: pick an exact or mesh shape'; return; }
-  vctx.fillStyle = '#fffef9'; pathFor(vctx, w); vctx.fill('evenodd'); vctx.strokeStyle = C.ink; vctx.globalAlpha = 0.6; vctx.lineWidth = Math.max(1, w / 320); pathFor(vctx, w); vctx.stroke(); vctx.globalAlpha = 1;
+  if (!segs) { $('overlay').textContent = 'draw a shape to bounce balls in it'; return; }
+  vctx.fillStyle = '#fffef9'; billPath(vctx, w); vctx.fill('evenodd'); vctx.strokeStyle = C.ink; vctx.globalAlpha = 0.6; vctx.lineWidth = Math.max(1, w / 320); billPath(vctx, w); vctx.stroke(); vctx.globalAlpha = 1;
   if (!balls.length && !bClearFlag) { const c = insidePoint(); addBall(c[0], c[1], Math.cos(0.7), Math.sin(0.7)); birkClear(); }
   if (balls.length) bClearFlag = false;
-  if (!dens || dens.length !== G * G || densKey !== domain.key) { dens = new F(G * G); densKey = domain.key; }
+  const bk = billPolys().key; if (!dens || dens.length !== G * G || densKey !== bk) { dens = new F(G * G); densKey = bk; }
   if (!bPaused) { lyapEnsure(); for (const b of balls) { stepBall(b, cSpeed() * dt, segs); keepInside(b); } lyapTrack(segs, cSpeed() * dt); }
   if (cView === 'density') {
     let sum = 0, cnt = 0; for (let p = 0; p < G * G; p++) if (mask[p]) { sum += dens[p]; cnt++; }
@@ -2359,6 +2421,7 @@ function renderQuantum(dt) {
     if (currentPreset === 'slit' && !domain) { $('qSigma').value = 80; $('qSpeed').value = 8; qShowSliders(); qPacket(0.12, 0.5, 0.6 * qKMax(), 0); }
     else { const [rx, ry] = qDefaultPoint(); qPacket(rx, ry, 0.3 * qKMax(), 0.12 * qKMax()); }
   }
+  if (!qs.modal && basis && basis.count !== qs.checked && performance.now() - (qs.lastTry || 0) > 1000) { qs.lastTry = performance.now(); qTryModal(); }
   if (!qPaused) { qStep(dt * qRate()); survRecord(); }
   if (!qRe || qRe.length !== G * G) { qRe = new F(G * G); qIm = new F(G * G); }
   heat.toRaster(qs.R, qRe); heat.toRaster(qs.I, qIm);
@@ -2369,8 +2432,8 @@ function renderQuantum(dt) {
   paintField(qRe, qScale, qView === 're' ? C.div : C.seq, qView === 're', vctx, view);
   if (qDrag) drawQArrow(w);
   const st = qStats();
-  $('qInfo').textContent = `t = ${qs.t.toExponential(2)} · ∫|ψ|² = ${st.nrm.toFixed(4)} · ⟨E⟩ = ${st.e.toFixed(1)}${qs.slow ? ' · running slower: this mesh has some very small elements' : ''}`;
-  $('overlay').textContent = `${qView === 're' ? 'Re ψ' : qView === 'abs' ? '|ψ|' : '|ψ|²'} · ${domain ? 'full mesh' : 'full pixel grid'} (not modal)`;
+  $('qInfo').textContent = `t = ${qs.t.toExponential(2)} · ∫|ψ|² = ${st.nrm.toFixed(4)} · ⟨E⟩ = ${st.e.toFixed(1)}${qs.slow ? ' · running slower: this mesh has some very small elements' : ''}${qs.modal ? ` · exact, in ${qs.modal.idx.length.toLocaleString()} mode${qs.modal.idx.length > 1 ? 's' : ''}` : qs.cover != null ? ` · time-stepped (the modes hold ${(100 * qs.cover).toFixed(1)}% of ψ)` : ''}`;
+  $('overlay').textContent = `${qView === 're' ? 'Re ψ' : qView === 'abs' ? '|ψ|' : '|ψ|²'} · ${qs.modal ? 'exact eigenmode evolution' : domain ? 'full mesh, time-stepped' : 'full pixel grid, time-stepped'}`;
   drawSurv();
 }
 let surv = null;
@@ -2383,7 +2446,7 @@ function survRecord() {
   if (surv.t.length > 4000) { surv.t = surv.t.filter((_, i) => i % 2 === 0); surv.p = surv.p.filter((_, i) => i % 2 === 0); }
 }
 function survIPR() { // long-time average of the survival probability: Σ|c_k|⁴ over the modes, if they hold the state
-  if (surv.ipr !== undefined) return surv.ipr; surv.ipr = null;
+  if (surv.ipr !== undefined && surv.iprN === nModes) return surv.ipr; surv.ipr = null; surv.iprN = nModes; // redo as more modes arrive
   if (!nModes || !basis || basis.n !== heat.n) return null;
   const n = heat.n, M = heat.Ml, R0 = qs0.R, I0 = qs0.I; let s2 = 0, s4 = 0;
   for (let k = 0; k < nModes; k++) { const y = modeNode(k); let a = 0, b = 0; for (let i = 0; i < n; i++) { const w = M[i] * y[i]; a += w * R0[i]; b += w * I0[i]; } const c2 = a * a + b * b; s2 += c2; s4 += c2 * c2; }
@@ -2401,7 +2464,7 @@ function drawSurv() {
   if (ipr != null) { x.save(); x.setLineDash([5, 4]); x.strokeStyle = C.ink; x.globalAlpha = 0.7; x.beginPath(); x.moveTo(L, sy(ipr)); x.lineTo(W - R, sy(ipr)); x.stroke(); x.restore(); }
   x.strokeStyle = C.accent; x.lineWidth = 1.5; x.beginPath(); surv.t.forEach((t, i) => i ? x.lineTo(sx(t), sy(surv.p[i])) : x.moveTo(sx(t), sy(surv.p[i]))); x.stroke();
   const now = surv.p[surv.p.length - 1];
-  $('survInfo').textContent = `now ${(100 * now).toFixed(1)}%` + (ipr != null ? ` · long-time average ${surv.cover < 0.98 ? '≈ ' : ''}${(100 * ipr).toFixed(2)}%, so the state is spread over about ${Math.max(1, Math.round(1 / ipr)).toLocaleString()} modes${surv.cover < 0.98 ? ` (from the ${nModes.toLocaleString()} modes in use, which hold ${Math.round(100 * surv.cover)}% of it)` : ''}` : surv.cover != null ? ` · the ${nModes.toLocaleString()} modes in use hold only ${Math.round(100 * surv.cover)}% of this state, so no long-time line` : '');
+  $('survInfo').textContent = `now ${(100 * now).toFixed(1)}%` + (ipr != null ? ` · long-time average ${surv.cover < 0.98 ? '≈ ' : ''}${(100 * ipr).toFixed(2)}%, so the state is spread over about ${Math.max(1, Math.round(1 / ipr)).toLocaleString()} mode${Math.round(1 / ipr) > 1 ? 's' : ''}${surv.cover < 0.98 ? ` (from the ${nModes.toLocaleString()} modes in use, which hold ${Math.round(100 * surv.cover)}% of it)` : ''}` : surv.cover != null ? ` · the ${nModes.toLocaleString()} modes in use hold only ${Math.round(100 * surv.cover)}% of this state, so no long-time line` : '');
 }
 function drawQArrow(w) {
   const x0 = qDrag.x0 * w, y0 = qDrag.y0 * w, x1 = qDrag.x1 * w, y1 = qDrag.y1 * w, a = Math.atan2(y1 - y0, x1 - x0), hl = Math.max(8, w / 50);
@@ -2448,27 +2511,40 @@ function strike(cx, cy, animate) {
   const px = Math.min(G - 1, Math.max(0, Math.floor(cx))), py = Math.min(G - 1, Math.max(0, Math.floor(cy)));
   if (!mask[py * G + px]) return;
   audio();
-  const x = (px + 0.5) / G, y = (py + 0.5) / G, listener = $('listener').value, sigma = hammerSigma(), count = Kreq(), key = [reqDone, listener, sigma.toFixed(4), count, basis.prog && basis.prog.finished].join('|');
+  const x = (px + 0.5) / G, y = (py + 0.5) / G, listener = $('listener').value, sigma = hammerSigma(), count = Kreq(), key = [reqDone, listener, sigma.toFixed(4), count, basis.count].join('|');
   if (!refCache[key]) { refCache[key] = {}; const [rx, ry] = refPoint(); worker.postMessage({ type: 'strike', id: 'ref|' + key, x: rx, y: ry, sigma, listener, count }); }
   const id = ++strikeSeq; pendingStrikes.set(id, { listener, key });
   worker.postMessage({ type: 'strike', id, x, y, sigma, listener, count });
   lastHit = { x, y };
   if (animate) drum = { c: projectBump(x, y, sigma, null), t0: performance.now(), x, y, sigma };
 }
-function refGain(ref, listener, sr) {
-  if (!ref || !ref.parts) return null;
-  const { z0, z1 } = damping(), k = [$('f0').value, z0, z1].join('|');
-  if (ref.gk !== k) { const d = synthesize(toOscillators(ref.parts, listener), sr, 0.35, 1); let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); ref.gain = pk > 0 ? 0.45 / pk : 1; ref.gk = k; }
-  return ref.gain;
+// The 4 s of audio are built in their own worker, so a hit never freezes the animation.
+let synthWorker = null, synthSeq = 0; const synthJobs = new Map();
+function synthJob(job) {
+  if (!synthWorker) {
+    synthWorker = new Worker(URL.createObjectURL(new Blob([synthesize.toString() + `
+self.onmessage = (ev) => {
+  const { id, osc, ref, sr } = ev.data; let gain = ev.data.gain, fromRef = false;
+  const level = (o) => { const d = synthesize(o, sr, 0.35, 1); let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); return pk > 0 ? 0.45 / pk : 1; };
+  if (gain == null) { gain = level(ref || osc); fromRef = !!ref; }
+  const d = synthesize(osc, sr, 4, gain); self.postMessage({ id, d, gain, fromRef }, [d.buffer]);
+};`], { type: 'text/javascript' })));
+    synthWorker.onmessage = (ev) => {
+      const { id, d, gain, fromRef } = ev.data, j = synthJobs.get(id); if (!j) return; synthJobs.delete(id);
+      if (fromRef && j.ref) { j.ref.gain = gain; j.ref.gk = j.gk; } // the reference hit's loudness, reused by later hits
+      playBuffer(d, j.sr);
+    };
+  }
+  const id = ++synthSeq; synthJobs.set(id, job);
+  synthWorker.postMessage({ id, osc: job.osc, ref: job.refOsc, gain: job.gain, sr: job.sr });
 }
 function onStrike(m) {
   if (typeof m.id === 'string') { const key = m.id.slice(4); if (refCache[key]) refCache[key].parts = m.parts; return; }
   const ps = pendingStrikes.get(m.id); if (!ps) return; pendingStrikes.delete(m.id);
   const ctx = audio(); if (!ctx) return;
-  const osc = toOscillators(m.parts, ps.listener);
-  let gain = refGain(refCache[ps.key], ps.listener, ctx.sampleRate);
-  if (gain == null) { const d0 = synthesize(osc, ctx.sampleRate, 0.35, 1); let pk = 0; for (let i = 0; i < d0.length; i++) pk = Math.max(pk, Math.abs(d0[i])); gain = pk > 0 ? 0.45 / pk : 1; }
-  playBuffer(synthesize(osc, ctx.sampleRate, 4, gain), ctx.sampleRate);
+  const osc = toOscillators(m.parts, ps.listener), ref = refCache[ps.key], { z0, z1 } = damping(), gk = [$('f0').value, z0, z1].join('|');
+  const known = ref && ref.parts && ref.gk === gk ? ref.gain : null; // loudness is set by the reference hit at the drum's center
+  synthJob({ osc, refOsc: known == null && ref && ref.parts ? toOscillators(ref.parts, ps.listener) : null, gain: known, sr: ctx.sampleRate, ref: ref && ref.parts ? ref : null, gk });
   lastSpec = { parts: m.parts, listener: ps.listener, info: m.info, nyq: ctx.sampleRate / 2 }; drawSpectrum();
 }
 function hitAt(x, y) { if (dview === 'wave' && nModes) { const c = projectBump(x, y, hammerSigma(), null); if (!mw) modalWave(0); for (let k = 0; k < nModes; k++) mw.v[k] += c[k]; strike(x * G, y * G, false); } else strike(x * G, y * G, true); }
@@ -2534,7 +2610,7 @@ function drawSpectrumChart() {
   const nyq = has ? lastSpec.nyq : 22050;
   const osc = has ? toOscillators(lastSpec.parts, lastSpec.listener).filter(o => o.f < nyq) : [], mag = osc.map(o => Math.hypot(o.as, o.ac)), mx = Math.max(...mag, 0) || 1;
   const inf = has ? lastSpec.info : null;
-  const fCut = inf ? fOf(18.4 / (inf.sigma * inf.sigma)) : null, fGrid = inf && inf.tail ? fOf(inf.lamMax) : null; // (grid limit only matters while the Lanczos estimate is in use)
+  const fCut = inf ? fOf(18.4 / (inf.sigma * inf.sigma)) : null, fGrid = null;
   const fLo = f1 * 0.7, fHi = has ? Math.min(nyq, Math.max(f1 * 4, ...osc.map(o => o.f), Math.min(fCut, f1 * 60)) * 1.12) : f1 * 24;
   const sx = (f) => L + Math.log(f / fLo) / Math.log(fHi / fLo) * (W - L - R);
   const syA = (db) => T1 + (-Math.max(-60, Math.min(0, db)) / 60) * (B1 - T1);
@@ -2547,30 +2623,20 @@ function drawSpectrumChart() {
   for (const db of [0, -20, -40, -60]) s += `<line x1="${L}" x2="${W - R}" y1="${syA(db)}" y2="${syA(db)}" stroke="${C.line}" stroke-width="1"/><text x="${L - 5}" y="${syA(db) + 3}" text-anchor="end">${db}</text>`;
   for (let n = 1; n <= 16 && n * f1 < fHi; n++) s += `<line x1="${sx(n * f1)}" x2="${sx(n * f1)}" y1="${T1}" y2="${B1}" stroke="${C.muted}" stroke-opacity="0.45" stroke-dasharray="1 3" stroke-width="1"/>`;
   const items = osc.map((o, i) => ({ o, db: 20 * Math.log10(mag[i] / mx + 1e-12) })).filter(q => q.db > -60);
-  const tail = items.filter(q => !q.o.exact), exact = items.filter(q => q.o.exact); let tailX = null;
-  if (tail.length) { // shade the band where the Lanczos estimate takes over
-    const fT = Math.min(...tail.map(q => q.o.f)), x0 = Math.max(L, sx(fT) - 2);
-    s += `<rect x="${x0}" y="${T1}" width="${W - R - x0}" height="${B1 - T1}" fill="${BURG}" fill-opacity="0.06"/>`;
-    s += `<line x1="${x0}" x2="${x0}" y1="${T1}" y2="${B1}" stroke="${BURG}" stroke-width="1" stroke-dasharray="4 3"/>`;
-    tailX = x0;
-    for (const q of tail) s += `<line x1="${sx(q.o.f)}" x2="${sx(q.o.f)}" y1="${B1}" y2="${syA(q.db)}" stroke="${BURG}" stroke-opacity="0.8" stroke-width="1.2"/>`;
-  }
+  const exact = items;
   for (const q of exact) s += `<line x1="${sx(q.o.f)}" x2="${sx(q.o.f)}" y1="${B1}" y2="${syA(q.db)}" stroke="${C.accent}" stroke-width="2.2"/>`;
   if (inf) {
     let path = ''; for (let i = 0; i <= 160; i++) { const f = fLo * Math.pow(fHi / fLo, i / 160), lam = l1 * (f / f1) ** 2, db = 20 * Math.log10(Math.exp(-(lam - l1) * inf.sigma * inf.sigma / 2)); path += `${i ? 'L' : 'M'}${sx(f).toFixed(1)},${syA(db).toFixed(1)}`; if (db < -60) break; }
     s += `<path d="${path}" fill="none" stroke="${C.ink}" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.8"/>`;
     const marker = (f, label, row) => { if (!f || f <= fLo || f >= fHi) return ''; const x = sx(f), right = x > L + 0.6 * (W - L - R); return `<line x1="${x}" x2="${x}" y1="${T1}" y2="${B2}" stroke="${C.ink}" stroke-width="1" opacity="0.55"/><text x="${x + (right ? -4 : 4)}" y="${T1 + 10 + 12 * row}" text-anchor="${right ? 'end' : 'start'}" fill="${C.ink}">${label}</text>`; };
     s += marker(fCut, 'hammer cutoff', 0);
-    if (fGrid && inf.provisional) s += marker(fGrid, domain ? 'mesh limit' : 'grid limit', 1);
     if (inf.modeLimit) s += marker(fOf(inf.modeLimit), `mode limit (${inf.exact} modes)`, 1);
   } else s += `<text x="${(L + W - R) / 2}" y="${(T1 + B1) / 2}" text-anchor="middle">Hit the drum to see which notes it plays</text>`;
-  if (tailX != null) s += `<rect x="${tailX + 3}" y="${T1 + 30}" width="170" height="14" fill="#fffef9" stroke="#7a2438" stroke-width="0.8"/><text x="${tailX + 8}" y="${T1 + 40.5}" fill="#7a2438">provisional Lanczos estimate →</text>`;
   // ---- panel B: ring time, with handles to drag
   s += `<text x="${L}" y="${T2 - 12}">ring time T60 (log scale) · drag the squares to shape the damping</text>`;
   for (const t of [0.01, 0.1, 1, 10]) s += `<line x1="${L}" x2="${W - R}" y1="${syB(t)}" y2="${syB(t)}" stroke="${C.line}" stroke-width="1"/><text x="${L - 5}" y="${syB(t) + 3}" text-anchor="end">${t >= 1 ? t + ' s' : t * 1000 + 'ms'}</text>`;
   let dp = ''; for (let i = 0; i <= 160; i++) { const f = fLo * Math.pow(fHi / fLo, i / 160); dp += `${i ? 'L' : 'M'}${sx(f).toFixed(1)},${syB(T60(gam(f))).toFixed(1)}`; }
   s += `<path d="${dp}" fill="none" stroke="${C.accent}" stroke-width="2"/>`;
-  for (const q of tail) s += `<circle cx="${sx(q.o.f)}" cy="${syB(T60(q.o.g))}" r="1.6" fill="${BURG}" fill-opacity="0.7"/>`;
   for (const q of exact) s += `<circle cx="${sx(q.o.f)}" cy="${syB(T60(q.o.g))}" r="2.3" fill="${C.accent}"/>`;
   const fA = f1, fB = Math.min(fHi / 1.25, f1 * 16);
   for (const f of [fA, fB]) { const x = sx(f), y = syB(T60(gam(f))); s += `<rect x="${x - 5}" y="${y - 5}" width="10" height="10" fill="${C.accent}" stroke="#fff" stroke-width="1.5"/><rect x="${x - 6}" y="${y - 6}" width="12" height="12" fill="none" stroke="${C.ink}" stroke-width="1"/>`; }
@@ -2580,8 +2646,8 @@ function drawSpectrumChart() {
   svg.innerHTML = s;
   specGeom = { W, H, L, R, T1, B1, T2, B2, fLo, fHi, tMin, tMax, f1, w1, fA, fB, sx, items };
   if (inf) {
-    const lim = inf.modeLimit ? `mode ${inf.exact} (${fmtHz(fOf(inf.modeLimit))}); raise “Modes used” for more` : fGrid && fGrid < fCut ? `the ${domain ? 'mesh' : 'grid'} limit at ${fmtHz(fGrid)}` : `the hammer cutoff at ${fmtHz(fCut)}`;
-    $('specInfo').textContent = `${inf.exact.toLocaleString()} exact modes${inf.provisional ? ' so far, plus a provisional Lanczos estimate for the rest' : ''} · hammer width σ = ${inf.sigma.toFixed(3)} · the sound stops at ${lim}`;
+    const lim = inf.partial ? `the highest mode ready so far, ${fmtHz(fOf(inf.lamMax))}` : inf.modeLimit ? `mode ${inf.exact} (${fmtHz(fOf(inf.modeLimit))}); raise “Modes used” for more` : fGrid && fGrid < fCut ? `the ${domain ? 'mesh' : 'grid'} limit at ${fmtHz(fGrid)}` : `the hammer cutoff at ${fmtHz(fCut)}`;
+    $('specInfo').textContent = `${inf.exact.toLocaleString()} exact modes${inf.partial ? ' so far (more are on the way)' : ''} · hammer width σ = ${inf.sigma.toFixed(3)} · the sound stops at ${lim}`;
   } else $('specInfo').textContent = '';
   showDamping();
 }
@@ -2610,7 +2676,7 @@ $('spectrum').addEventListener('pointermove', (e) => {
   if (y > g.B1) { tip.hidden = true; return; }
   let best = null, bd = 1e9; for (const q of g.items) { const d = Math.abs(g.sx(q.o.f) - x); if (d < bd) { bd = d; best = q; } }
   if (!best || bd > 8) { tip.hidden = true; return; }
-  tip.hidden = false; tip.textContent = `${best.o.exact ? 'exact mode' : 'Lanczos estimate'}${best.o.mult > 1 ? ' ×' + best.o.mult : ''} · ${best.o.f.toFixed(1)} Hz · ${(best.o.f / g.f1).toFixed(3)}·f₁ · ${best.db.toFixed(1)} dB · rings ${fmtSec(T60(best.o.g))}`;
+  tip.hidden = false; tip.textContent = `mode${best.o.mult > 1 ? ' ×' + best.o.mult : ''} · ${best.o.f.toFixed(1)} Hz · ${(best.o.f / g.f1).toFixed(3)}·f₁ · ${best.db.toFixed(1)} dB · rings ${fmtSec(T60(best.o.g))}`;
   tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, e.clientX + 12) + 'px'; tip.style.top = (e.clientY - 30) + 'px';
 });
 const endDamp = () => { dampDrag = null; };
@@ -2689,7 +2755,7 @@ view.addEventListener('pointerdown', (e) => {
       else if (insideAt(ux, uy)) { const s = { x: ux, y: uy, T: +$('srcT').value }; s.nodes = sourceNodes(s); sources.push(s); selSrc = sources.length - 1; dragSrc = selSrc; clampSources(); }
       renderSources(); drawColorbar();
     } else heatPaint(ux, uy);
-  } else if (tab === 'quantum' && (bmode === 'c' ? domain && SH.inGeom(domain.polys, ux, uy) : heat && insideAt(ux, uy))) qDrag = { x0: ux, y0: uy, x1: ux, y1: uy };
+  } else if (tab === 'quantum' && (bmode === 'c' ? insideAt(ux, uy) : heat && insideAt(ux, uy))) qDrag = { x0: ux, y0: uy, x1: ux, y1: uy };
 });
 view.addEventListener('pointermove', (e) => {
   if (viewDown && tab === 'quantum' && qDrag) { const [ux, uy] = unitAt(e); qDrag.x1 = ux; qDrag.y1 = uy; return; }
@@ -2700,7 +2766,7 @@ view.addEventListener('pointermove', (e) => {
 view.addEventListener('pointerup', () => {
   viewDown = false; dragSrc = -1;
   if (qDrag) {
-    if (bmode === 'c' && domain) { const dx = qDrag.x1 - qDrag.x0, dy = qDrag.y1 - qDrag.y0, a = Math.random() * 2 * Math.PI; if (SH.inGeom(domain.polys, qDrag.x0, qDrag.y0)) addBall(qDrag.x0, qDrag.y0, Math.hypot(dx, dy) > 0.01 ? dx : Math.cos(a), Math.hypot(dx, dy) > 0.01 ? dy : Math.sin(a)); }
+    if (bmode === 'c') { const dx = qDrag.x1 - qDrag.x0, dy = qDrag.y1 - qDrag.y0, a = Math.random() * 2 * Math.PI; if (insideAt(qDrag.x0, qDrag.y0)) addBall(qDrag.x0, qDrag.y0, Math.hypot(dx, dy) > 0.01 ? dx : Math.cos(a), Math.hypot(dx, dy) > 0.01 ? dy : Math.sin(a)); }
     else { const [kx, ky] = qDragK(); qEmpty = false; qPacket(qDrag.x0, qDrag.y0, kx, ky); }
     qDrag = null;
   }
@@ -2752,13 +2818,14 @@ function setTab(t) {
 let lastT = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  if (stripQueue.size && C.void) stripWork(6);
   if (C.void && !$('viewBox').hidden) {
     if (tab === 'modes' || tab === 'compare') { if (modesDirty) { renderModes(); showModeInfo(); modesDirty = false; } else if (tab === 'modes' && mChart === 'nodal' && nod.c.length < nModes) drawNodalChart(); }
     else if (tab === 'drum' && dview === 'wave') {
       fitCanvas(view);
       if (!nModes || resG !== G) blank('computing…');
       else {
-        modalWave(dt); const fld = heatField && heatField.length === G * G ? heatField : (heatField = new F(G * G)); modalField(mw.u, fld);
+        modalWave(dt); const fld = heatField && heatField.length === G * G ? heatField : (heatField = new F(G * G)); modalField(mw.u, fld, 0.005 * waveScale);
         waveScale = Math.max(waveScale * 0.985, maxAbs(fld), 1e-6);
         paintField(fld, waveScale, C.div, true, vctx, view); $('overlay').textContent = `live wave · ${nModes.toLocaleString()} modes`;
         if (lastHit) { const w = view.width, r1 = Math.max(3, hammerSigma() * w); vctx.lineWidth = 1.5; vctx.strokeStyle = C.ink; vctx.globalAlpha = 0.6; vctx.beginPath(); vctx.arc(lastHit.x * w, lastHit.y * w, r1, 0, 2 * Math.PI); vctx.stroke(); vctx.globalAlpha = 1; }
@@ -2786,7 +2853,7 @@ function frame(now) {
         if (!heatField || heatField.length !== G * G) heatField = new F(G * G);
         const nk = Math.min(nModes, drum.c.length), coef = new F(nk); let am = 0;
         for (let k = 0; k < nk; k++) { const r = vals[k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r), od = Math.sqrt(Math.max(om * om - g * g, 1e-12)); coef[k] = drum.c[k] * Math.exp(-g * t) * Math.sin(od * t) / od; am += Math.abs(drum.c[k]) / od * basis.amax[k]; }
-        modalField(coef, heatField); paintField(heatField, 0.45 * am || 1, C.div, true, vctx, view);
+        modalField(coef, heatField, 0.005 * 0.45 * am); paintField(heatField, 0.45 * am || 1, C.div, true, vctx, view);
         const w = view.width, cx0 = drum.x * w, cy0 = drum.y * w, r1 = Math.max(3, drum.sigma * w);
         vctx.save(); vctx.setLineDash([4, 4]); vctx.lineWidth = 1; vctx.strokeStyle = C.ink; vctx.globalAlpha = 0.5; vctx.beginPath(); vctx.arc(cx0, cy0, 2 * r1, 0, 2 * Math.PI); vctx.stroke(); vctx.restore();
         vctx.lineWidth = 3; vctx.strokeStyle = '#fffef9'; vctx.beginPath(); vctx.arc(cx0, cy0, r1, 0, 2 * Math.PI); vctx.stroke();
@@ -2825,6 +2892,7 @@ $('brush').addEventListener('change', () => { $('dmBrush').value = $('brush').va
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
 new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
+if (matchMedia('(max-width: 600px)').matches) for (const [id, w, h] of [['birk', 380, 240], ['lyap', 380, 170], ['surv', 380, 160], ['sgram', 380, 160], ['husimi', 380, 260]]) { const c = $(id); if (c) { c.width = w; c.height = h; } }
 readColors();
 const ROUTES = {
   drum: { tab: 'drum', shape: 'fem:horn', eyebrow: 'Interactive · from my undergrad thesis', title: 'Eigendrum — Jackson Turner' },
@@ -2847,7 +2915,8 @@ function syncHash() { // keep the address in step with the view, without reloadi
 function applyRoute(loadShape) {
   const name = ROUTES[location.hash.slice(1)] ? location.hash.slice(1) : 'billiards', r = ROUTES[name];
   routing = true;
-  if (loadShape && r.shape) { $('preset').value = r.shape; const [kind, key] = r.shape.split(':'); if (kind === 'px') applyPreset(key); else loadSmooth(key); }
+  const shape = r.shape || (basis || domain ? null : ROUTES.drum.shape); // #modes, #heat, #compare keep the current shape, or start from the default one
+  if (loadShape && shape) { $('preset').value = shape; const [kind, key] = shape.split(':'); if (kind === 'px') applyPreset(key); else loadSmooth(key); }
   setTab(r.tab); if (r.bill) setBillMode(r.bill);
   routing = false; syncHash();
 }
