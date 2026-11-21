@@ -165,14 +165,12 @@ legend { padding: 0 5px; color: var(--burgundy); font: bold 10px var(--font-mono
 .chip.sel { color: #fff; background: var(--navy); border-style: inset; }
 .colorbar { display: inline-flex; align-items: center; gap: 6px; }
 #cbar { width: 150px; height: 10px; display: block; border: 1px solid #a3b0a6; }
-.tablewrap { overflow-x: auto; width: 100%; }
 table { border-collapse: collapse; width: 100%; font-size: 12px; background: #fff; }
 th, td { padding: 4px 8px; text-align: right; border: 1px solid #c3cec6; white-space: nowrap; }
 th { color: var(--burgundy); background: #edf1ee; font: bold 10px var(--font-mono); letter-spacing: .04em; vertical-align: bottom; }
 td { font-family: var(--font-mono); }
 th:first-child, td:first-child { text-align: left; }
 td.err { color: var(--muted); font-size: 11px; }
-.cmp-intro { margin: 0; color: #354239; font-size: 12.5px; max-width: 72ch; }
 .method { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
 .method h3 { margin: 0; color: var(--navy-dark); font: bold 16px var(--font-display); }
 .method p, .method li { margin: 0; color: #354239; font-size: 12.5px; line-height: 1.6; max-width: 62ch; }
@@ -289,14 +287,13 @@ td.err { color: var(--muted); font-size: 11px; }
           <button role="tab" data-tab="modes" aria-selected="false" type="button">Modes</button>
           <button role="tab" data-tab="heat" aria-selected="false" type="button">Heat</button>
           <button role="tab" data-tab="quantum" aria-selected="false" type="button">Billiard</button>
-          <button role="tab" data-tab="compare" aria-selected="false" type="button">vs undergrad thesis</button>
         </div>
       </div>
       <div class="viewbox" id="viewBox"><canvas id="view" class="sq" aria-label="Field view"></canvas><div class="overlay" id="overlay"></div>
         <div class="loadbar" id="loadbar" hidden><span id="loadText">Computing modes…</span><div class="lb-track"><div class="lb-fill" id="loadFill"></div></div></div>
       </div>
       <!-- view bars: how the canvas is shown, per tab -->
-      <div class="tabctl" data-for="modes compare" hidden>
+      <div class="tabctl" data-for="modes" hidden>
         <span class="seg"><button id="modePrev" type="button" aria-label="Previous mode">◀</button><button id="modeNext" type="button" aria-label="Next mode">▶</button></span>
         <label><input type="checkbox" id="nodal" checked> Nodal lines</label>
         <label><input type="checkbox" id="tones" checked> Play each mode’s note</label>
@@ -450,20 +447,6 @@ td.err { color: var(--muted); font-size: 11px; }
         <p class="small" style="margin:0">The packet leaves its starting spot, so this drops fast. Echoes come back when parts of the wave return along short classical orbits. Over a long time it settles to Σ|c<sub>k</sub>|⁴ (dashed), where c<sub>k</sub> is how much of mode k the start contains. Starting from a single mode, it stays at 1.</p>
         </div>
       </div>
-      <div class="side" data-side="compare" hidden>
-        <p class="cmp-intro" id="cmpIntro"></p>
-        <div class="toolbar">
-          <label for="cmpN">Sine modes M
-            <select id="cmpN"><option value="12">12² = 144</option><option value="20" selected>20² = 400</option><option value="28">28² = 784</option></select>
-          </label>
-          <label for="cmpV">V₀
-            <select id="cmpV"><option value="2.1e4">2.1×10⁴</option><option value="2.1e5" selected>2.1×10⁵ (paper)</option><option value="2.6e6">2.6×10⁶</option></select>
-          </label>
-          <button id="cmpRun" class="primary" type="button">Run comparison</button>
-          <span class="meta" id="cmpInfo"></span>
-        </div>
-        <div class="tablewrap"><table id="cmpTable"></table></div>
-      </div>
     </section>
   </main>
 
@@ -487,7 +470,6 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
         <li>Use the pixels themselves as the building blocks. What remains is a sparse matrix with five entries per row.</li>
         <li>Only ask for the lowest modes, and start from the last answer while you draw. A brush stroke usually takes a few milliseconds.</li>
       </ul>
-      <p class="small">The “vs undergrad thesis” tab runs both methods side by side.</p>
     </div>
     <div class="panel">
       <h3>Smooth shapes</h3>
@@ -1386,38 +1368,6 @@ function exactStrike(a, x, y, sigma, listener, count) {
 }
 
 // ---------- thesis partitioned expansion method (separable assembly) ----------
-function tridiag(a, n) {
-  const d = new F(n), e = new F(n);
-  for (let i = n - 1; i > 0; i--) {
-    const l = i - 1; let h = 0, scale = 0; const ai = a[i];
-    if (l > 0) {
-      for (let k = 0; k <= l; k++) scale += Math.abs(ai[k]);
-      if (scale === 0) e[i] = ai[l];
-      else {
-        for (let k = 0; k <= l; k++) { ai[k] /= scale; h += ai[k] * ai[k]; }
-        let f = ai[l], g = f >= 0 ? -Math.sqrt(h) : Math.sqrt(h);
-        e[i] = scale * g; h -= f * g; ai[l] = f - g; f = 0;
-        for (let j = 0; j <= l; j++) { g = 0; const aj = a[j]; for (let k = 0; k <= j; k++) g += aj[k] * ai[k]; for (let k = j + 1; k <= l; k++) g += a[k][j] * ai[k]; e[j] = g / h; f += e[j] * ai[j]; }
-        const hh = f / (h + h);
-        for (let j = 0; j <= l; j++) { f = ai[j]; e[j] = g = e[j] - hh * f; const aj = a[j]; for (let k = 0; k <= j; k++) aj[k] -= (f * e[k] + g * ai[k]); }
-      }
-    } else e[i] = ai[l];
-    d[i] = h;
-  }
-  for (let i = 0; i < n; i++) d[i] = a[i][i];
-  return { d, e };
-}
-function thesis(mask, G, N, V0, K) {
-  const t0 = performance.now(), Fp = (k, x) => k === 0 ? x : Math.sin(k * Math.PI * x) / (k * Math.PI), I = new F(G * N * N);
-  for (let j = 0; j < G; j++) { const x0 = j / G, x1 = (j + 1) / G; for (let a = 0; a < N; a++) for (let b = 0; b < N; b++) { const dk = Math.abs(a - b), sk = a + b + 2; I[(j * N + a) * N + b] = (Fp(dk, x1) - Fp(dk, x0)) - (Fp(sk, x1) - Fp(sk, x0)); } }
-  const C = new F(G * N * N);
-  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) { if (mask[y * G + x]) continue; const off = y * N * N, src = x * N * N; for (let q = 0; q < N * N; q++) C[off + q] += I[src + q]; }
-  const M = N * N, H = []; for (let r = 0; r < M; r++) H.push(new F(M));
-  for (let y = 0; y < G; y++) { const cy = y * N * N; for (let a1 = 0; a1 < N; a1++) for (let b1 = 0; b1 < N; b1++) { const c = C[cy + a1 * N + b1]; if (c === 0) continue; const w = V0 * c; for (let a2 = 0; a2 < N; a2++) { const row = H[a1 * N + a2], iy = cy + a2 * N; for (let b2 = 0; b2 < N; b2++) row[b1 * N + b2] += w * I[iy + b2]; } } }
-  for (let a1 = 0; a1 < N; a1++) for (let a2 = 0; a2 < N; a2++) H[a1 * N + a2][a1 * N + a2] += Math.PI * Math.PI * ((a1 + 1) ** 2 + (a2 + 1) ** 2);
-  const { d, e } = tridiag(H, M); tqli(d, e, M);
-  return { vals: Array.from(d).sort((a, b) => a - b).slice(0, K), M, ms: performance.now() - t0 };
-}
 
 self.onmessage = (ev) => {
   const m = ev.data;
@@ -1427,9 +1377,6 @@ self.onmessage = (ev) => {
       const g = GEOMS[m.key].make(), r = g.analytic ? solveExact(g, m.count, m.sigma, m.R) : solveFEM(g, m.K, m.R, false);
       self.postMessage({ type: 'smooth', id: m.id, key: m.key, method: g.analytic ? 'exact' : 'fem', ...r }, [r.Y.buffer]);
     }
-    else if (m.type === 'femvals') { const r = solveFEM(GEOMS[m.gkey].make(), m.K, 0, true); self.postMessage({ type: 'femvals', key: m.key, ...r }); }
-    else if (m.type === 'pixvals') { const r = solvePixel(m.mask, m.G, m.K, { valsOnly: true, noCache: true, noAudio: true }); self.postMessage({ type: 'pixvals', key: m.key, G: m.G, ...r }); }
-    else if (m.type === 'thesis') { const r = thesis(m.mask, m.G, m.N, m.V0, m.K); self.postMessage({ type: 'thesis', key: m.key, N: m.N, V0: m.V0, G: m.G, ...r }); }
     else if (m.type === 'basis') { // the chosen number of modes (count), or null for every mode below the hammer cutoff
       if (audio && audio.kind === 'op') startRefine(m.sigma, m.count);
       else if (audio && audio.kind === 'exact') {
@@ -1659,13 +1606,12 @@ function showProgress(m) {
 function setModes(m) { // a new shape or a new solve: start the basis afresh
   basisInit(m); resG = G; lastMs = m.ms; reqDone++;
   drum = null; lastSpec = null; refCache = {}; mw = null; modesDirty = true; drawStrip(); drawSpectrum();
-  if (tab === 'compare') renderCompare();
 }
 function loadSmooth(key) {
   currentPreset = key; balls = []; bBounces = 0; bseg = null; dens = null; lyapReset(); husCloud = null;
   const def = SH.GEOMS[key], g = def.make();
   domain = { key, geom: g, polys: SH.geomPolys(g), how: def.how, method: g.analytic ? 'exact' : 'fem', mesh: null, labels: null, nodes: 0, hmesh: 0.02 };
-  pixelReset(); heat = null; cmp = {};
+  pixelReset(); heat = null;
   smoothReq = ++reqId; setStatus(g.analytic ? 'computing exact modes…' : 'building mesh and solving…', true);
   worker.postMessage({ type: 'smooth', id: smoothReq, key, K: Math.min(Ksel, 64), count: Kreq(), sigma: hammerSigma(), R: RS });
   drawEditor(); modesDirty = true;
@@ -1684,12 +1630,10 @@ worker.onmessage = (ev) => {
     heatFromFEM(m.heat); setModes(m); drawEditor();
     setStatus(`${m.method === 'exact' ? 'exact formulas' : 'mesh, ' + m.nodes.toLocaleString() + ' points'} · ${m.ms.toFixed(0)} ms`, false);
     if (m.method === 'exact') showProgress({ done: basis.count, count: Kreq(), finished: true, capped: false, ms: m.ms }); else requestBasis();
-  } else if (m.type === 'femvals') { if (m.key === cmpKey()) { cmp.fem = m; renderCompare(); } }
-  else if (m.type === 'pixvals') { if (m.key === cmpKey()) { cmp.pix = m; renderCompare(); } }
-  else if (m.type === 'thesis') { if (m.key === cmpKey()) { cmp.thesis = m; renderCompare(); } $('cmpRun').disabled = false; }
+  }
   else if (m.type === 'strike') onStrike(m);
   else if (m.type === 'basis') { if (!basis) return; basisAppend(m.start, m.lams, m.Y, m.labels); showProgress(m); if (m.finished) refCache = {}; }
-  else if (m.type === 'error') { setStatus(`solver error in ${m.what}: ${m.message}`, false); busy = false; $('cmpRun').disabled = false; }
+  else if (m.type === 'error') { setStatus(`solver error in ${m.what}: ${m.message}`, false); busy = false; }
 };
 
 // ---------- field rendering ----------
@@ -2028,7 +1972,7 @@ function selectMode(k, fromKeys) {
   if (k >= STRIP_MAX && tab !== 'modes' && !fromKeys) setTab('modes');
   if (fromKeys && items[k]) { const st = $('strip'), it = items[k]; if (it.offsetTop < st.scrollTop) st.scrollTop = it.offsetTop - 4; else if (it.offsetTop + it.offsetHeight > st.scrollTop + st.clientHeight) st.scrollTop = it.offsetTop + it.offsetHeight - st.clientHeight + 4; } // scroll the strip only, never the page
   if ((tab === 'modes' || fromKeys) && $('tones').checked && nModes) playTone(+$('f0').value * Math.sqrt(vals[k] / vals[0]));
-  if (tab === 'modes' || tab === 'compare') showModeInfo();
+  if (tab === 'modes') showModeInfo();
 }
 // Keyboard: ← → step through the modes, ↓ jumps ahead 10, ↑ jumps back 10 (each plays the mode's note)
 document.addEventListener('keydown', (e) => {
@@ -2684,60 +2628,7 @@ $('spectrum').addEventListener('pointerup', endDamp); $('spectrum').addEventList
 $('spectrum').addEventListener('pointerleave', () => { if (!dampDrag) tip.hidden = true; });
 const fmtHz = (f) => f >= 1000 ? (f / 1000).toFixed(1) + ' kHz' : f.toFixed(0) + ' Hz';
 
-// ---------- comparison ----------
-let cmp = {};
-const cmpKey = () => domain ? 'smooth:' + domain.key + ':' + Gp : 'px:' + maskKey() + ':' + G;
 function maskKey() { let h = 0; for (let i = 0; i < mask.length; i++) h = (h * 31 + mask[i] * (i + 7)) | 0; return h; }
-function rectInfo() {
-  let x0 = G, x1 = -1, y0 = G, y1 = -1, n = 0;
-  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) if (mask[y * G + x]) { n++; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-  return n && n === (x1 - x0 + 1) * (y1 - y0 + 1) ? { Lx: (x1 - x0 + 1) / G, Ly: (y1 - y0 + 1) / G } : null;
-}
-function exactRect(r, k) { const out = []; for (let p = 1; p <= k + 2; p++) for (let q = 1; q <= k + 2; q++) out.push(Math.PI ** 2 * (p * p / r.Lx ** 2 + q * q / r.Ly ** 2)); return out.sort((a, b) => a - b).slice(0, k); }
-function fmtErr(a, e) { if (a == null || e == null) return ''; const r = (a - e) / e; return (r >= 0 ? '+' : '−') + Math.abs(r * 100).toFixed(Math.abs(r) < 0.001 ? 3 : 2) + '%'; }
-function renderCompare() {
-  const t = $('cmpTable'), rows = Math.min(nModes, 12);
-  if (!nModes) { t.innerHTML = '<tr><td>Waiting for the modes…</td></tr>'; return; }
-  const cols = [];
-  let ref = null, refName = '';
-  if (domain) {
-    $('cmpIntro').textContent = 'The same shape solved four ways. “Exact” uses the formula, when there is one. “Mesh” uses finite elements on a mesh that follows the edge. The pixel solver and the undergrad thesis method both work on the shape turned into pixels, at the grid size set in the shape panel, so curved edges cost them some accuracy.';
-    if (domain.method === 'exact') { ref = Array.from(vals); refName = 'exact'; cols.push({ name: 'Exact', sub: domain.how, v: ref }); }
-    const fem = domain.method === 'fem' ? { vals, nodes: domain.nodes, ms: lastMs } : cmp.fem;
-    const femV = fem ? Array.from(fem.vals) : null;
-    cols.push({ name: 'Mesh', sub: fem ? `${fem.nodes.toLocaleString()} points · ${fem.ms.toFixed(0)} ms` : 'not run', v: femV });
-    if (!ref && femV) { ref = femV; refName = 'FEM'; }
-    cols.push({ name: `Pixel solver, ${Gp}²`, sub: cmp.pix ? `${cmp.pix.n.toLocaleString()} px · ${cmp.pix.ms.toFixed(0)} ms` : 'not run', v: cmp.pix ? Array.from(cmp.pix.vals) : null });
-    cols.push({ name: `Undergrad thesis method, ${Gp}²`, sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
-  } else {
-    $('cmpIntro').textContent = 'The method from chapter 6 of my undergrad thesis next to the faster solver used on this page, on the same pixels. If the pixels form a rectangle the exact answer is known, so you also see each method’s error.';
-    const rect = rectInfo();
-    if (rect) { ref = exactRect(rect, rows); refName = 'exact'; cols.push({ name: 'Exact', sub: 'pixel rectangle', v: ref }); }
-    cols.push({ name: 'Undergrad thesis method', sub: cmp.thesis ? `M = ${cmp.thesis.M}, V₀ = ${(+cmp.thesis.V0).toExponential(1)} · ${cmp.thesis.ms.toFixed(0)} ms` : 'not run', v: cmp.thesis ? cmp.thesis.vals : null });
-    cols.push({ name: 'This page', sub: `${mask.reduce((a, b) => a + b, 0).toLocaleString()} px · ${lastMs.toFixed(0)} ms`, v: Array.from(vals) });
-  }
-  let h = '<thead><tr><th>k</th>';
-  for (const c of cols) { const isRef = ref && c.v === ref; h += `<th>${c.name}<br><span style="font-weight:400">${c.sub}</span></th>${ref && !isRef ? `<th>vs ${refName}</th>` : ''}`; }
-  h += '</tr></thead><tbody>';
-  for (let k = 0; k < rows; k++) {
-    h += `<tr><td>λ${sub(k + 1)}</td>`;
-    for (const c of cols) { const isRef = ref && c.v === ref, a = c.v ? c.v[k] : null; h += `<td>${a != null ? a.toFixed(3) : '—'}</td>${ref && !isRef ? `<td class="err">${fmtErr(a, ref[k])}</td>` : ''}`; }
-    h += '</tr>';
-  }
-  t.innerHTML = h + '</tbody>';
-}
-$('cmpRun').onclick = () => {
-  const N = +$('cmpN').value, V0 = +$('cmpV').value, key = cmpKey(), k12 = Math.min(nModes || 12, 12);
-  $('cmpRun').disabled = true; $('cmpInfo').textContent = 'running…'; cmp = {};
-  if (domain) {
-    const rm = SH.rasterize(domain.geom, Gp);
-    if (domain.method === 'exact') worker.postMessage({ type: 'femvals', key, gkey: domain.key, K: k12 });
-    worker.postMessage({ type: 'pixvals', key, mask: rm, G: Gp, K: k12 });
-    worker.postMessage({ type: 'thesis', key, mask: rm, G: Gp, N, V0, K: k12 });
-  } else worker.postMessage({ type: 'thesis', key, mask: mask.slice(), G, N, V0, K: k12 });
-  renderCompare();
-};
-
 // ---------- view interaction ----------
 let viewDown = false;
 function unitAt(e) { const r = view.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
@@ -2799,18 +2690,17 @@ $('heatMode').onclick = () => { // project the selected mode onto the heat nodes
 document.querySelectorAll('[role="tab"]').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
 function setTab(t) {
   tab = t;
-  const SIDE = { drum: ['Sound', 'what you hear from the last hit'], modes: ['Mode', 'the selected vibration pattern'], heat: ['Heat', 'temperature, edges held at 0°'], quantum: ['Quantum billiard', 'a particle trapped in the shape'], compare: ['vs undergrad thesis', 'the same shape solved four ways'] };
+  const SIDE = { drum: ['Sound', 'what you hear from the last hit'], modes: ['Mode', 'the selected vibration pattern'], heat: ['Heat', 'temperature, edges held at 0°'], quantum: ['Quantum billiard', 'a particle trapped in the shape'] };
   $('side-h').textContent = SIDE[t][0]; $('sideSub').textContent = SIDE[t][1];
   if (t === 'quantum') setBillMode(bmode);
   if (typeof syncHash === 'function') syncHash();
   document.querySelectorAll('[data-side]').forEach((d) => { d.hidden = d.dataset.side !== t; });
-  modesDirty = true; if (t === 'drum') drawSpectrum(); if (t === 'modes' || t === 'compare') showModeInfo();
+  modesDirty = true; if (t === 'drum') drawSpectrum(); if (t === 'modes') showModeInfo();
   document.querySelectorAll('[role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
   document.querySelectorAll('.tabctl').forEach((d) => { d.hidden = !d.dataset.for.split(' ').includes(t); });
   $('overlay').textContent = '';
   if (t === 'modes') modesDirty = true;
   if (t === 'drum') { drawSpectrum(); $('hamOut').textContent = `σ = ${hammerSigma().toFixed(3)}`; setDrumView(dview); }
-  if (t === 'compare') renderCompare();
   if (t === 'heat') { drawColorbar(); if (heat && !sources.length && !heat.u.some(v => v !== 0) && nModes) { sources = [{ x: 0, y: 0, T: 100 }]; const [rx, ry] = refPoint(); sources[0].x = rx; sources[0].y = ry; sources[0].nodes = sourceNodes(sources[0]); selSrc = 0; clampSources(); renderSources(); } }
 }
 
@@ -2820,7 +2710,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   if (stripQueue.size && C.void) stripWork(6);
   if (C.void && !$('viewBox').hidden) {
-    if (tab === 'modes' || tab === 'compare') { if (modesDirty) { renderModes(); showModeInfo(); modesDirty = false; } else if (tab === 'modes' && mChart === 'nodal' && nod.c.length < nModes) drawNodalChart(); }
+    if (tab === 'modes') { if (modesDirty) { renderModes(); showModeInfo(); modesDirty = false; } else if (tab === 'modes' && mChart === 'nodal' && nod.c.length < nModes) drawNodalChart(); }
     else if (tab === 'drum' && dview === 'wave') {
       fitCanvas(view);
       if (!nModes || resG !== G) blank('computing…');
@@ -2870,7 +2760,7 @@ function frame(now) {
 $('toolDraw').onclick = () => { tool = 'draw'; syncTools(); };
 $('toolErase').onclick = () => { tool = 'erase'; syncTools(); };
 $('preset').onchange = () => {
-  const v = $('preset').value; if (v === 'px:custom') return; cmp = {};
+  const v = $('preset').value; if (v === 'px:custom') return;
   if (v === 'px:slit') { $('kSel').value = '32'; Ksel = 32; qEmpty = false; qs = null; setQView('abs'); }
   if (v.startsWith('px:')) applyPreset(v.slice(3)); else loadSmooth(v.split(':')[1]);
   if (v === 'px:slit') setTab('quantum');
@@ -2881,8 +2771,8 @@ $('modePrev').onclick = () => { if (nModes) selectMode((selected - 1 + nModes) %
 $('modeNext').onclick = () => { if (nModes) selectMode((selected + 1) % nModes); };
 $('nodal').onchange = () => { modesDirty = true; };
 $('gridSel').onchange = () => {
-  const ng = +$('gridSel').value; Gp = ng; cmp = {};
-  if (domain) { if (tab === 'compare') renderCompare(); return; }
+  const ng = +$('gridSel').value; Gp = ng;
+  if (domain) return;
   const nm = new Uint8Array(ng * ng);
   for (let y = 0; y < ng; y++) for (let x = 0; x < ng; x++) nm[y * ng + x] = mask[Math.floor((y + 0.5) * G / ng) * G + Math.floor((x + 0.5) * G / ng)];
   G = ng; mask = nm; pixelReset(); shapeChanged(false);
@@ -2898,7 +2788,7 @@ const ROUTES = {
   drum: { tab: 'drum', shape: 'fem:horn', eyebrow: 'Interactive · from my undergrad thesis', title: 'Eigendrum — Jackson Turner' },
   billiards: { tab: 'quantum', bill: 'c', shape: 'fem:mushroom', eyebrow: 'Interactive · dynamical billiards', title: 'Dynamical billiards · Eigendrum — Jackson Turner' },
   quantum: { tab: 'quantum', bill: 'q', shape: 'fem:stadium', eyebrow: 'Interactive · quantum billiards', title: 'Quantum billiards · Eigendrum — Jackson Turner' },
-  modes: { tab: 'modes' }, heat: { tab: 'heat' }, compare: { tab: 'compare' },
+  modes: { tab: 'modes' }, heat: { tab: 'heat' }, compare: { tab: 'modes' }, // (old #compare links open the Modes tab)
 };
 let routing = false;
 function routeName() { if (tab === 'quantum') return bmode === 'c' ? 'billiards' : 'quantum'; return tab; }
@@ -2915,7 +2805,7 @@ function syncHash() { // keep the address in step with the view, without reloadi
 function applyRoute(loadShape) {
   const name = ROUTES[location.hash.slice(1)] ? location.hash.slice(1) : 'billiards', r = ROUTES[name];
   routing = true;
-  const shape = r.shape || (basis || domain ? null : ROUTES.drum.shape); // #modes, #heat, #compare keep the current shape, or start from the default one
+  const shape = r.shape || (basis || domain ? null : ROUTES.drum.shape); // #modes and #heat keep the current shape, or start from the default one
   if (loadShape && shape) { $('preset').value = shape; const [kind, key] = shape.split(':'); if (kind === 'px') applyPreset(key); else loadSmooth(key); }
   setTab(r.tab); if (r.bill) setBillMode(r.bill);
   routing = false; syncHash();
