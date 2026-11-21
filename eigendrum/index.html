@@ -84,10 +84,19 @@ h1 { margin: 0 0 10px; color: var(--navy-dark); font: bold 36px/1 var(--font-dis
 .mode-info b { font: bold 18px var(--font-display); color: var(--navy-dark); }
 @media (max-width: 860px) {
   .stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "shape" "view" "side"; }
-  .shape-panel { display: flex; }
+  .shape-panel { display: flex; flex-direction: column; align-items: stretch; }
+  .shape-panel > #editor { width: min(100%, 340px); align-self: center; }
 }
+@media (max-width: 600px) { /* phones: chart text stays readable when the 600-wide charts shrink to the screen */
+  svg.spectrum text { font-size: 14px; }
+  .ctl-grid select { min-width: 0; width: 100%; }
+  .tabs button { padding: 6px 9px; }
+  label:has(> #preset) { display: flex; width: 100%; }
+  #preset { flex: 1 1 auto; min-width: 0; width: 100%; }
+  label:has(> #dmShape) { display: flex; width: 100%; }
+  #dmShape { flex: 1 1 auto; min-width: 0; width: 100%; }
 }
-.panel { background: var(--panel); border: 1px solid #96a79a; box-shadow: 2px 2px 0 #d5ddd7; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* (a .panel rule used to sit here; a stray brace above it meant browsers always dropped it, and the layout was built without it) */
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: -12px -12px 2px; padding: 5px 10px; background: linear-gradient(90deg, #dce6df, #f8f8f4); border-bottom: 1px solid #a5b5a9; min-height: 34px; }
 h2 { margin: 0; color: var(--navy-dark); font: bold 18px var(--font-display); }
 .meta { font: 11px var(--font-mono); color: var(--muted); }
@@ -513,7 +522,7 @@ eig(H) → the drum’s modes, as V₀ → ∞</div>
     <label for="dmBrush">Brush <select id="dmBrush"><option value="0.5">1 px</option><option value="1.5">3 px</option><option value="2.6">5 px</option><option value="4.2">9 px</option></select></label>
     <label for="dmShape">Start from <select id="dmShape"></select></label>
     <button id="dmClear" class="ghost" type="button">Clear</button>
-    <span class="small">Shift-drag or right-drag erases. The drum updates as you draw.</span>
+    <span class="small">Use Erase to remove pixels (on a computer, shift-drag also erases). The drum updates as you draw.</span>
     <button id="dmDone" class="primary" type="button">Done</button>
   </div>
   <div class="dm-stage" id="dmStage"></div>
@@ -1587,8 +1596,13 @@ function requestSolve(warm) {
 }
 // ---------- the mode basis ----------
 const rasterCache = new Map();
+function basisCap(m) { // room for every mode up to the hammer cutoff (Weyl: N ≈ Aλ/4π), so the store never has to grow and copy mid-animation
+  let A = 0; if (heat && heat.n === m.n) for (let i = 0; i < heat.n; i++) A += heat.Ml[i]; else if (!domain && mask) { for (let i = 0; i < mask.length; i++) A += mask[i]; A /= G * G; } else A = 0.6;
+  let est = Math.ceil(1.3 * A * (18.4 / hammerSigma() ** 2) / (4 * Math.PI)) + 64; if (Ksel !== Infinity) est = Math.min(est, Ksel + 8);
+  return Math.max(64, m.K, Math.min(est, m.n));
+}
 function basisInit(m) { // first batch from a solve
-  const n = m.n; basis = { n, count: 0, lam: new F(Math.max(64, m.K)), Y: new Float32Array(Math.max(64, m.K) * n), amax: new F(Math.max(64, m.K)), labels: [], prog: null };
+  const n = m.n, cap = basisCap(m); basis = { n, count: 0, lam: new F(cap), Y: new Float32Array(cap * n), amax: new F(cap), labels: [], prog: null };
   rasterCache.clear(); basisAppend(0, m.vals, m.Y, m.labels);
 }
 function basisAppend(start, lams, Y, labels) {
@@ -1738,6 +1752,15 @@ function renderModes() {
 }
 
 // ---------- strip ----------
+const stripQueue = new Set();
+function stripWork(ms) {
+  const t0 = performance.now(), strip = $('strip');
+  for (const k of stripQueue) {
+    stripQueue.delete(k); const b = strip.children[k]; if (!b || k >= nModes) continue;
+    const c = b.querySelector('canvas'), r = modeRaster(k); paintField(r, maxAbs(r), C.div, true, c.getContext('2d'), c);
+    if (performance.now() - t0 > ms) break;
+  }
+}
 function drawStrip() {
   const strip = $('strip'); if (!C.void) return;
   const ns = nStrip();
@@ -1752,7 +1775,7 @@ function drawStrip() {
   for (let k = 0; k < ns; k++) {
     const b = strip.children[k], c = b.querySelector('canvas'), sz = domain ? 120 : G;
     if (c.width !== sz) { c.width = sz; c.height = sz; }
-    const r = modeRaster(k); paintField(r, maxAbs(r), C.div, true, c.getContext('2d'), c);
+    stripQueue.add(k); // painted a few per frame by stripWork, so a full strip never freezes the animation
     b.querySelector('em').textContent = vals[k].toFixed(1);
     b.classList.toggle('sel', k === selected);
     b.setAttribute('aria-label', `Mode ${k + 1}, lambda ${vals[k].toFixed(2)}`);
@@ -2039,9 +2062,15 @@ function modalWave(dt) {
   }
 }
 let nodeTmp = null;
-function modalField(coef, out) { // Σ coef_k φ_k on the points, then onto the screen
-  const n = basis.n; if (!nodeTmp || nodeTmp.length !== n) nodeTmp = new F(n); nodeTmp.fill(0);
-  for (let k = 0; k < coef.length; k++) { const a = coef[k]; if (Math.abs(a) < 1e-14) continue; const o = k * n, Y = basis.Y; for (let i = 0; i < n; i++) nodeTmp[i] += a * Y[o + i]; }
+function modalField(coef, out, tol = 0) { // Σ coef_k φ_k on the points, then onto the screen
+  // tol > 0: skip the smallest modes as long as together they can change no point by more than tol (|coef_k|·max|φ_k| summed)
+  const n = basis.n, K = coef.length; if (!nodeTmp || nodeTmp.length !== n) nodeTmp = new F(n); nodeTmp.fill(0);
+  let cut = -1;
+  if (tol > 0 && K > 64) {
+    const w = new Float32Array(K); for (let k = 0; k < K; k++) w[k] = Math.abs(coef[k]) * basis.amax[k];
+    w.sort(); let acc = 0; for (let j = 0; j < K; j++) { if (acc + w[j] > tol) break; acc += w[j]; cut = w[j]; }
+  }
+  for (let k = 0; k < K; k++) { const a = coef[k]; if (Math.abs(a) < 1e-14 || Math.abs(a) * basis.amax[k] <= cut) continue; const o = k * n, Y = basis.Y; for (let i = 0; i < n; i++) nodeTmp[i] += a * Y[o + i]; }
   heat.toRaster(nodeTmp, out);
 }
 
@@ -2489,20 +2518,33 @@ function strike(cx, cy, animate) {
   lastHit = { x, y };
   if (animate) drum = { c: projectBump(x, y, sigma, null), t0: performance.now(), x, y, sigma };
 }
-function refGain(ref, listener, sr) {
-  if (!ref || !ref.parts) return null;
-  const { z0, z1 } = damping(), k = [$('f0').value, z0, z1].join('|');
-  if (ref.gk !== k) { const d = synthesize(toOscillators(ref.parts, listener), sr, 0.35, 1); let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); ref.gain = pk > 0 ? 0.45 / pk : 1; ref.gk = k; }
-  return ref.gain;
+// The 4 s of audio are built in their own worker, so a hit never freezes the animation.
+let synthWorker = null, synthSeq = 0; const synthJobs = new Map();
+function synthJob(job) {
+  if (!synthWorker) {
+    synthWorker = new Worker(URL.createObjectURL(new Blob([synthesize.toString() + `
+self.onmessage = (ev) => {
+  const { id, osc, ref, sr } = ev.data; let gain = ev.data.gain, fromRef = false;
+  const level = (o) => { const d = synthesize(o, sr, 0.35, 1); let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); return pk > 0 ? 0.45 / pk : 1; };
+  if (gain == null) { gain = level(ref || osc); fromRef = !!ref; }
+  const d = synthesize(osc, sr, 4, gain); self.postMessage({ id, d, gain, fromRef }, [d.buffer]);
+};`], { type: 'text/javascript' })));
+    synthWorker.onmessage = (ev) => {
+      const { id, d, gain, fromRef } = ev.data, j = synthJobs.get(id); if (!j) return; synthJobs.delete(id);
+      if (fromRef && j.ref) { j.ref.gain = gain; j.ref.gk = j.gk; } // the reference hit's loudness, reused by later hits
+      playBuffer(d, j.sr);
+    };
+  }
+  const id = ++synthSeq; synthJobs.set(id, job);
+  synthWorker.postMessage({ id, osc: job.osc, ref: job.refOsc, gain: job.gain, sr: job.sr });
 }
 function onStrike(m) {
   if (typeof m.id === 'string') { const key = m.id.slice(4); if (refCache[key]) refCache[key].parts = m.parts; return; }
   const ps = pendingStrikes.get(m.id); if (!ps) return; pendingStrikes.delete(m.id);
   const ctx = audio(); if (!ctx) return;
-  const osc = toOscillators(m.parts, ps.listener);
-  let gain = refGain(refCache[ps.key], ps.listener, ctx.sampleRate);
-  if (gain == null) { const d0 = synthesize(osc, ctx.sampleRate, 0.35, 1); let pk = 0; for (let i = 0; i < d0.length; i++) pk = Math.max(pk, Math.abs(d0[i])); gain = pk > 0 ? 0.45 / pk : 1; }
-  playBuffer(synthesize(osc, ctx.sampleRate, 4, gain), ctx.sampleRate);
+  const osc = toOscillators(m.parts, ps.listener), ref = refCache[ps.key], { z0, z1 } = damping(), gk = [$('f0').value, z0, z1].join('|');
+  const known = ref && ref.parts && ref.gk === gk ? ref.gain : null; // loudness is set by the reference hit at the drum's center
+  synthJob({ osc, refOsc: known == null && ref && ref.parts ? toOscillators(ref.parts, ps.listener) : null, gain: known, sr: ctx.sampleRate, ref: ref && ref.parts ? ref : null, gk });
   lastSpec = { parts: m.parts, listener: ps.listener, info: m.info, nyq: ctx.sampleRate / 2 }; drawSpectrum();
 }
 function hitAt(x, y) { if (dview === 'wave' && nModes) { const c = projectBump(x, y, hammerSigma(), null); if (!mw) modalWave(0); for (let k = 0; k < nModes; k++) mw.v[k] += c[k]; strike(x * G, y * G, false); } else strike(x * G, y * G, true); }
@@ -2776,13 +2818,14 @@ function setTab(t) {
 let lastT = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  if (stripQueue.size && C.void) stripWork(6);
   if (C.void && !$('viewBox').hidden) {
     if (tab === 'modes' || tab === 'compare') { if (modesDirty) { renderModes(); showModeInfo(); modesDirty = false; } else if (tab === 'modes' && mChart === 'nodal' && nod.c.length < nModes) drawNodalChart(); }
     else if (tab === 'drum' && dview === 'wave') {
       fitCanvas(view);
       if (!nModes || resG !== G) blank('computing…');
       else {
-        modalWave(dt); const fld = heatField && heatField.length === G * G ? heatField : (heatField = new F(G * G)); modalField(mw.u, fld);
+        modalWave(dt); const fld = heatField && heatField.length === G * G ? heatField : (heatField = new F(G * G)); modalField(mw.u, fld, 0.005 * waveScale);
         waveScale = Math.max(waveScale * 0.985, maxAbs(fld), 1e-6);
         paintField(fld, waveScale, C.div, true, vctx, view); $('overlay').textContent = `live wave · ${nModes.toLocaleString()} modes`;
         if (lastHit) { const w = view.width, r1 = Math.max(3, hammerSigma() * w); vctx.lineWidth = 1.5; vctx.strokeStyle = C.ink; vctx.globalAlpha = 0.6; vctx.beginPath(); vctx.arc(lastHit.x * w, lastHit.y * w, r1, 0, 2 * Math.PI); vctx.stroke(); vctx.globalAlpha = 1; }
@@ -2810,7 +2853,7 @@ function frame(now) {
         if (!heatField || heatField.length !== G * G) heatField = new F(G * G);
         const nk = Math.min(nModes, drum.c.length), coef = new F(nk); let am = 0;
         for (let k = 0; k < nk; k++) { const r = vals[k] / vals[0], om = w1 * Math.sqrt(r), g = w1 * (z0 + z1 * r), od = Math.sqrt(Math.max(om * om - g * g, 1e-12)); coef[k] = drum.c[k] * Math.exp(-g * t) * Math.sin(od * t) / od; am += Math.abs(drum.c[k]) / od * basis.amax[k]; }
-        modalField(coef, heatField); paintField(heatField, 0.45 * am || 1, C.div, true, vctx, view);
+        modalField(coef, heatField, 0.005 * 0.45 * am); paintField(heatField, 0.45 * am || 1, C.div, true, vctx, view);
         const w = view.width, cx0 = drum.x * w, cy0 = drum.y * w, r1 = Math.max(3, drum.sigma * w);
         vctx.save(); vctx.setLineDash([4, 4]); vctx.lineWidth = 1; vctx.strokeStyle = C.ink; vctx.globalAlpha = 0.5; vctx.beginPath(); vctx.arc(cx0, cy0, 2 * r1, 0, 2 * Math.PI); vctx.stroke(); vctx.restore();
         vctx.lineWidth = 3; vctx.strokeStyle = '#fffef9'; vctx.beginPath(); vctx.arc(cx0, cy0, r1, 0, 2 * Math.PI); vctx.stroke();
@@ -2849,6 +2892,7 @@ $('brush').addEventListener('change', () => { $('dmBrush').value = $('brush').va
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
 new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
+if (matchMedia('(max-width: 600px)').matches) for (const [id, w, h] of [['birk', 380, 240], ['lyap', 380, 170], ['surv', 380, 160], ['sgram', 380, 160], ['husimi', 380, 260]]) { const c = $(id); if (c) { c.width = w; c.height = h; } }
 readColors();
 const ROUTES = {
   drum: { tab: 'drum', shape: 'fem:horn', eyebrow: 'Interactive · from my undergrad thesis', title: 'Eigendrum — Jackson Turner' },
@@ -2871,7 +2915,8 @@ function syncHash() { // keep the address in step with the view, without reloadi
 function applyRoute(loadShape) {
   const name = ROUTES[location.hash.slice(1)] ? location.hash.slice(1) : 'billiards', r = ROUTES[name];
   routing = true;
-  if (loadShape && r.shape) { $('preset').value = r.shape; const [kind, key] = r.shape.split(':'); if (kind === 'px') applyPreset(key); else loadSmooth(key); }
+  const shape = r.shape || (basis || domain ? null : ROUTES.drum.shape); // #modes, #heat, #compare keep the current shape, or start from the default one
+  if (loadShape && shape) { $('preset').value = shape; const [kind, key] = shape.split(':'); if (kind === 'px') applyPreset(key); else loadSmooth(key); }
   setTab(r.tab); if (r.bill) setBillMode(r.bill);
   routing = false; syncHash();
 }
