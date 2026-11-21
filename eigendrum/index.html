@@ -877,7 +877,33 @@ function meshGeom(g, target) {
   if (g.type === 'tube') return meshTube(g, target * 1.6);
   if (g.type === 'ring') return meshRing(g, target);
   if (g.segs.length === 3 && g.segs.every(s => s.type === 'line')) return meshTri(g.segs.map(s => s.a), target);
-  return meshFan(g, target);
+  return flipObtuse(meshFan(g, target));
+}
+// Lawson edge flips: swap the diagonal of any two triangles whose opposite angles add to more than 180°.
+// Same nodes, same boundary; it removes the long, flat slivers a fan mesh makes along straight rims and cusps,
+// which otherwise make the operator so stiff that explicit time steps blow up.
+function flipObtuse(mesh) {
+  const { pos } = mesh, T = Array.from(mesh.tris), nt = T.length / 3;
+  const area2 = (a, b, c) => (pos[b][0] - pos[a][0]) * (pos[c][1] - pos[a][1]) - (pos[c][0] - pos[a][0]) * (pos[b][1] - pos[a][1]);
+  const angle = (o, a, b) => { const ux = pos[a][0] - pos[o][0], uy = pos[a][1] - pos[o][1], vx = pos[b][0] - pos[o][0], vy = pos[b][1] - pos[o][1]; return Math.atan2(Math.abs(ux * vy - uy * vx), ux * vx + uy * vy); };
+  let worst = 0;
+  for (let t = 0; t < nt; t++) { const [a, b, c] = [T[3 * t], T[3 * t + 1], T[3 * t + 2]]; if (area2(a, b, c) < 0) { T[3 * t + 1] = c; T[3 * t + 2] = b; } worst = Math.max(worst, angle(a, b, c), angle(b, c, a), angle(c, a, b)); }
+  if (worst < 150 * Math.PI / 180) return mesh; // already well shaped: leave it exactly as it was
+  const N = pos.length;
+  for (let pass = 0; pass < 50; pass++) {
+    const edge = new Map(); let flips = 0;
+    for (let t = 0; t < nt; t++) for (let e = 0; e < 3; e++) { const a = T[3 * t + e], b = T[3 * t + (e + 1) % 3], k = Math.min(a, b) * N + Math.max(a, b), l = edge.get(k); if (l) l.push(t, e); else edge.set(k, [t, e]); }
+    const done = new Uint8Array(nt);
+    for (const l of edge.values()) {
+      if (l.length !== 4) continue; const [t1, e1, t2, e2] = l; if (done[t1] || done[t2]) continue;
+      const a = T[3 * t1 + e1], b = T[3 * t1 + (e1 + 1) % 3], c = T[3 * t1 + (e1 + 2) % 3], d = T[3 * t2 + (e2 + 2) % 3]; // t1 = (a,b,c), t2 = (b,a,d), both counterclockwise
+      if (angle(c, a, b) + angle(d, b, a) <= Math.PI + 1e-9) continue;
+      if (area2(a, d, c) <= 1e-18 || area2(d, b, c) <= 1e-18) continue; // only a convex quad can be flipped
+      T[3 * t1] = a; T[3 * t1 + 1] = d; T[3 * t1 + 2] = c; T[3 * t2] = d; T[3 * t2 + 1] = b; T[3 * t2 + 2] = c; done[t1] = done[t2] = 1; flips++;
+    }
+    if (!flips) break;
+  }
+  return { ...mesh, tris: T };
 }
 // Stiffness K (P1) and lumped mass M on the interior nodes; symmetric form S = M^{-1/2} K M^{-1/2}.
 function femOps(mesh) {
@@ -2058,9 +2084,18 @@ function heatFromFEM(d) {
   const { n, mapT, mapW } = d;
   setHeat({ ...d, toRaster: (u, out) => { for (let p = 0; p < out.length; p++) { let s = 0; for (let j = 0; j < 3; j++) { const t = mapT[3 * p + j]; if (t >= 0) s += mapW[3 * p + j] * u[t]; } out[p] = s; } } });
 }
+function stiffNodes(h) { // nodes on needle-thin elements (cusps, flat rims) make the operator very stiff; time stepping holds them at 0
+  const { n, rp, ci, kv, Ml } = h, fix = new Uint8Array(n), rb = new Float64Array(n);
+  const rowB = (i) => { let s = 0; for (let q = rp[i]; q < rp[i + 1]; q++) if (!fix[ci[q]]) s += Math.abs(kv[q]); return s / Ml[i]; };
+  for (let i = 0; i < n; i++) rb[i] = rowB(i);
+  const sorted = Float64Array.from(rb).sort(), thresh = 6 * sorted[Math.floor(0.95 * (n - 1))]; let nfix = 0;
+  for (let pass = 0; pass < 12; pass++) { let ch = 0; for (let i = 0; i < n; i++) { if (fix[i]) continue; rb[i] = rowB(i); if (rb[i] > thresh) { fix[i] = 1; ch++; nfix++; } } if (!ch) break; }
+  let bound = 0; for (let i = 0; i < n; i++) if (!fix[i]) bound = Math.max(bound, rowB(i));
+  return { fix, bound, nfix };
+}
 function setHeat(h) {
-  let bound = 0; for (let i = 0; i < h.n; i++) { let s = 0; for (let q = h.rp[i]; q < h.rp[i + 1]; q++) s += Math.abs(h.kv[q]); bound = Math.max(bound, s / h.Ml[i]); }
-  heat = { ...h, bound, u: new F(h.n), t: 0 }; heatField = new F(G * G); qs = null;
+  const { fix, bound, nfix } = stiffNodes(h);
+  heat = { ...h, bound, fix, nfix, u: new F(h.n), t: 0 }; heatField = new F(G * G); qs = null;
   sources = sources.filter(s => insideAt(s.x, s.y)); sources.forEach(s => { s.nodes = sourceNodes(s); });
   if (selSrc >= sources.length) selSrc = sources.length - 1;
   clampSources(); renderSources();
@@ -2073,10 +2108,12 @@ function sourceNodes(s) {
 }
 function clampSources() { if (!heat) return; for (const s of sources) for (const i of s.nodes) heat.u[i] = s.T; }
 function heatStep(dtPhys) {
-  const { n, rp, ci, kv, Ml, u } = heat, dtMax = 1.8 / heat.bound, m = Math.min(300, Math.max(1, Math.ceil(dtPhys / dtMax))), dt = dtPhys / m, r = new F(n);
+  const { n, rp, ci, kv, Ml, u } = heat, dtMax = 1.8 / heat.bound; let m = Math.max(1, Math.ceil(dtPhys / dtMax));
+  if (m > 300) { m = 300; dtPhys = m * dtMax; } // a very stiff mesh: never take an unstable step; let time run slower instead
+  const dt = dtPhys / m, r = new F(n);
   for (let s = 0; s < m; s++) {
     for (let i = 0; i < n; i++) { let t = 0; for (let q = rp[i]; q < rp[i + 1]; q++) t += kv[q] * u[ci[q]]; r[i] = t; }
-    for (let i = 0; i < n; i++) u[i] -= dt * r[i] / Ml[i];
+    for (let i = 0; i < n; i++) u[i] = heat.fix[i] ? 0 : u[i] - dt * r[i] / Ml[i];
     clampSources();
   }
   heat.t += dtPhys;
@@ -2120,7 +2157,7 @@ let qs = null, qs0 = null, qEmpty = false, qView = 'abs2', qPaused = false, qDra
 const qSigma = () => +$('qSigma').value / 1000, qRate = () => 0.0004 * Math.pow(10, +$('qSpeed').value / 50);
 function qShowSliders() { $('qSigmaOut').textContent = qSigma().toFixed(3); $('qSpeedOut').textContent = `${qRate().toPrecision(2)} per s`; }
 function qKMax() { return 0.35 * Math.PI / heat.h; } // keep the packet well inside what the grid/mesh can resolve
-function qNormalize(R, I) { let s = 0; for (let i = 0; i < heat.n; i++) s += (R[i] * R[i] + I[i] * I[i]) * heat.Ml[i]; const c = 1 / Math.sqrt(s || 1); for (let i = 0; i < heat.n; i++) { R[i] *= c; I[i] *= c; } }
+function qNormalize(R, I) { for (let i = 0; i < heat.n; i++) if (heat.fix[i]) { R[i] = 0; I[i] = 0; } let s = 0; for (let i = 0; i < heat.n; i++) s += (R[i] * R[i] + I[i] * I[i]) * heat.Ml[i]; const c = 1 / Math.sqrt(s || 1); for (let i = 0; i < heat.n; i++) { R[i] *= c; I[i] *= c; } }
 function qPacket(x0, y0, kx, ky) {
   if (!heat) return; const n = heat.n, R = new F(n), I = new F(n), sg = Math.max(qSigma(), 2 * heat.h);
   for (let i = 0; i < n; i++) { const dx = heat.xy[2 * i] - x0, dy = heat.xy[2 * i + 1] - y0, a = Math.exp(-(dx * dx + dy * dy) / (4 * sg * sg)), ph = kx * dx + ky * dy; R[i] = a * Math.cos(ph); I[i] = a * Math.sin(ph); }
@@ -2135,9 +2172,11 @@ function qFromMode() {
   if (!heat || !nModes) return; const n = heat.n, R = Float64Array.from(modeNode(selected)), I = new F(n);
   qNormalize(R, I); qs = { R, I, t: 0, k: Math.sqrt(vals[selected]) }; qs0 = { R: F.from(R), I: F.from(I) }; qScale = 0; survReset();
 }
-function qMul(x, y) { const { n, rp, ci, kv, Ml } = heat; for (let i = 0; i < n; i++) { let t = 0; for (let q = rp[i]; q < rp[i + 1]; q++) t += kv[q] * x[ci[q]]; y[i] = t / Ml[i]; } }
+function qMul(x, y) { const { n, rp, ci, kv, Ml, fix } = heat; for (let i = 0; i < n; i++) { if (fix[i]) { y[i] = 0; continue; } let t = 0; for (let q = rp[i]; q < rp[i + 1]; q++) t += kv[q] * x[ci[q]]; y[i] = t / Ml[i]; } }
 function qStep(dtPhys) {
-  const n = heat.n, dtMax = 1.6 / heat.bound, m = Math.min(600, Math.max(1, Math.ceil(dtPhys / dtMax))), dt = dtPhys / m, tmp = new F(n), { R, I } = qs;
+  const n = heat.n, dtMax = 1.6 / heat.bound, { R, I } = qs; let m = Math.max(1, Math.ceil(dtPhys / dtMax)); qs.slow = m > 400;
+  if (qs.slow) { m = 400; dtPhys = m * dtMax; } // a very stiff mesh: never take an unstable step; let time run slower instead
+  const dt = dtPhys / m, tmp = new F(n);
   for (let s = 0; s < m; s++) { qMul(I, tmp); for (let i = 0; i < n; i++) R[i] += dt * tmp[i]; qMul(R, tmp); for (let i = 0; i < n; i++) I[i] -= dt * tmp[i]; }
   qs.t += dtPhys;
 }
@@ -2330,7 +2369,7 @@ function renderQuantum(dt) {
   paintField(qRe, qScale, qView === 're' ? C.div : C.seq, qView === 're', vctx, view);
   if (qDrag) drawQArrow(w);
   const st = qStats();
-  $('qInfo').textContent = `t = ${qs.t.toExponential(2)} · ∫|ψ|² = ${st.nrm.toFixed(4)} · ⟨E⟩ = ${st.e.toFixed(1)}`;
+  $('qInfo').textContent = `t = ${qs.t.toExponential(2)} · ∫|ψ|² = ${st.nrm.toFixed(4)} · ⟨E⟩ = ${st.e.toFixed(1)}${qs.slow ? ' · running slower: this mesh has some very small elements' : ''}`;
   $('overlay').textContent = `${qView === 're' ? 'Re ψ' : qView === 'abs' ? '|ψ|' : '|ψ|²'} · ${domain ? 'full mesh' : 'full pixel grid'} (not modal)`;
   drawSurv();
 }
