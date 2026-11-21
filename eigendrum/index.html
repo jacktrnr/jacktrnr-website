@@ -275,7 +275,7 @@ td.err { color: var(--muted); font-size: 11px; }
           <button role="tab" data-tab="drum" aria-selected="true" type="button">Drum</button>
           <button role="tab" data-tab="modes" aria-selected="false" type="button">Modes</button>
           <button role="tab" data-tab="heat" aria-selected="false" type="button">Heat</button>
-          <button role="tab" data-tab="quantum" aria-selected="false" type="button">Schrödinger</button>
+          <button role="tab" data-tab="quantum" aria-selected="false" type="button">Billiard</button>
           <button role="tab" data-tab="compare" aria-selected="false" type="button">vs undergrad thesis</button>
         </div>
       </div>
@@ -315,7 +315,8 @@ td.err { color: var(--muted); font-size: 11px; }
         <button id="heatReset" class="ghost" type="button">Cool</button>
       </div>
       <div class="tabctl" data-for="quantum" hidden>
-        <div class="seg" role="group" aria-label="What to show">
+        <div class="seg" role="group" aria-label="Quantum or classical"><button id="bmQ" class="on" type="button">Quantum</button><button id="bmC" type="button">Classical</button></div>
+        <div class="seg" role="group" aria-label="What to show" id="qvSeg">
           <button id="qvRe" type="button">Re ψ</button><button id="qvAbs" type="button">|ψ|</button><button id="qvAbs2" class="on" type="button">|ψ|²</button>
         </div>
         <button id="qPause" class="ghost" type="button">Pause</button>
@@ -376,6 +377,22 @@ td.err { color: var(--muted); font-size: 11px; }
         </div>
       </div>
       <div class="side" data-side="quantum" hidden>
+        <div id="cSide" class="side" hidden>
+          <p class="small" style="margin:0">A classical billiard: point balls bounce off the walls like light off mirrors, angle in equals angle out. Click the drum to drop a ball; drag before letting go to aim it. Several balls can run at once.</p>
+          <fieldset>
+            <legend>Balls</legend>
+            <div class="ctl-grid">
+              <label for="cSpeed">Speed</label><input type="range" id="cSpeed" min="0" max="100" value="50" data-default="50"><output id="cSpeedOut" class="meta"></output>
+              <label for="cTrail">Trail length</label><input type="range" id="cTrail" min="0" max="100" value="50" data-default="50"><output id="cTrailOut" class="meta"></output>
+            </div>
+            <div class="toolbar"><button id="cFast" type="button">Fast-forward 2,000 bounces</button><span class="small">fills in the phase-space plot</span></div>
+          </fieldset>
+          <div class="meta">Phase space (Birkhoff map): one dot per bounce off the outer wall, at its position along the wall and the bounce angle</div>
+          <canvas id="birk" width="560" height="300" style="width: 100%; height: auto; background: #fff; border: 1px solid #a3b0a6;" aria-label="Birkhoff phase-space plot"></canvas>
+          <p class="small" style="margin:0">Regular billiards trace smooth curves here (try the ellipse). Chaotic ones scatter dots over the whole plane (try the stadium). Mixed ones show islands in a chaotic sea (try the mushroom). It is the classical side of the spacing statistics on the Modes tab.</p>
+          <p class="meta" id="cInfo" style="margin:0"></p>
+        </div>
+        <div id="qSide" class="side">
         <p class="small" style="margin:0">A quantum billiard: a particle trapped in the shape, iψ<sub>t</sub> = −Δψ with ψ = 0 on the edge. Click the drum to drop a wave packet; drag before letting go to give it momentum. This runs on the full grid or mesh, so every mode it can hold is included.</p>
         <fieldset>
           <legend>Wave packet</legend>
@@ -386,6 +403,7 @@ td.err { color: var(--muted); font-size: 11px; }
           <div class="toolbar"><button id="qMode" type="button">Start from selected mode</button></div>
         </fieldset>
         <p class="meta" id="qInfo" style="margin:0"></p>
+        </div>
       </div>
       <div class="side" data-side="compare" hidden>
         <p class="cmp-intro" id="cmpIntro"></p>
@@ -1589,7 +1607,7 @@ function setModes(m) { // a new shape or a new solve: start the basis afresh
   if (tab === 'compare') renderCompare();
 }
 function loadSmooth(key) {
-  currentPreset = key;
+  currentPreset = key; balls = []; bBounces = 0; bseg = null;
   const def = SH.GEOMS[key], g = def.make();
   domain = { key, geom: g, polys: SH.geomPolys(g), how: def.how, method: g.analytic ? 'exact' : 'fem', mesh: null, labels: null, nodes: 0, hmesh: 0.02 };
   pixelReset(); heat = null; cmp = {};
@@ -1912,10 +1930,74 @@ function setQView(v) { qView = v; qScale = 0; for (const [id, k] of [['qvRe', 'r
 $('qvRe').onclick = () => setQView('re'); $('qvAbs').onclick = () => setQView('abs'); $('qvAbs2').onclick = () => setQView('abs2');
 $('qMode').onclick = () => { qEmpty = false; qFromMode(); };
 $('qRestart').onclick = () => { if (qs0 && heat && qs0.R.length === heat.n) { qEmpty = false; qs = { R: F.from(qs0.R), I: F.from(qs0.I), t: 0, k: 0 }; qScale = 0; } };
-$('qClear').onclick = () => { qEmpty = true; qs = null; qs0 = null; };
-$('qPause').onclick = () => { qPaused = !qPaused; $('qPause').textContent = qPaused ? 'Play' : 'Pause'; };
+$('qClear').onclick = () => { if (bmode === 'c') { balls = []; bBounces = 0; birkClear(); bClearFlag = true; return; } qEmpty = true; qs = null; qs0 = null; };
+let bClearFlag = false;
+$('qPause').onclick = () => { if (bmode === 'c') { bPaused = !bPaused; $('qPause').textContent = bPaused ? 'Play' : 'Pause'; return; } qPaused = !qPaused; $('qPause').textContent = qPaused ? 'Play' : 'Pause'; };
 $('qSigma').addEventListener('input', qShowSliders); $('qSpeed').addEventListener('input', qShowSliders); qShowSliders();
+// ---------- classical billiard: specular bounces off the outline, with a Birkhoff phase-space plot ----------
+const BALL_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#7a2438', '#6250d6', '#eda100', '#e87ba4', '#008300'];
+let bmode = 'q', balls = [], bseg = null, bKey = '', bPaused = false, bBounces = 0;
+const cSpeed = () => 0.05 * Math.pow(10, +$('cSpeed').value / 40), cTrail = () => Math.round(5 * Math.pow(10, +$('cTrail').value / 33));
+function cShowSliders() { $('cSpeedOut').textContent = `${cSpeed().toFixed(2)} box/s`; $('cTrailOut').textContent = `${cTrail()} bounces`; }
+function billSegments() { // wall segments; the outer ones carry arclength for the Birkhoff map
+  if (!domain) return null; if (bKey === domain.key && bseg) return bseg;
+  const segs = [], add = (P, outer) => { let cum = 0; const start = segs.length; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]); if (len < 1e-12) continue; segs.push({ ax: a[0], ay: a[1], ex: b[0] - a[0], ey: b[1] - a[1], len, cum, outer }); cum += len; } if (outer) for (let j = start; j < segs.length; j++) segs[j].total = cum; };
+  add(domain.polys.outer, true); if (domain.polys.hole) add(domain.polys.hole, false);
+  bseg = segs; bKey = domain.key; return segs;
+}
+function birkClear() { const c = $('birk'), x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.strokeStyle = '#c3cec6'; x.lineWidth = 1; x.beginPath(); x.moveTo(0, c.height / 2); x.lineTo(c.width, c.height / 2); x.stroke(); x.fillStyle = '#59665c'; x.font = '10px Courier New, monospace'; x.fillText('position along the wall →', 6, c.height - 6); x.fillText('bounce angle ↑', 6, 12); }
+function birkDot(sx, pt, color) { const c = $('birk'), x = c.getContext('2d'); x.fillStyle = color; x.fillRect(sx * c.width - 0.75, (1 - (pt + 1) / 2) * c.height - 0.75, 1.5, 1.5); }
+function addBall(x, y, dx, dy) {
+  const n = Math.hypot(dx, dy) || 1, color = BALL_COLORS[balls.length % BALL_COLORS.length];
+  if (balls.length >= 8) balls.shift();
+  balls.push({ x, y, vx: dx / n, vy: dy / n, trail: [[x, y]], color, last: -1 });
+}
+function stepBall(b, dist, segs) {
+  let left = dist, guard = 0;
+  while (left > 0 && guard++ < 200) {
+    let tmin = left, hit = -1, hu = 0;
+    for (let i = 0; i < segs.length; i++) {
+      if (i === b.last) continue; const g = segs[i], den = b.vx * g.ey - b.vy * g.ex; if (Math.abs(den) < 1e-14) continue;
+      const qx = g.ax - b.x, qy = g.ay - b.y, t = (qx * g.ey - qy * g.ex) / den, u = (qx * b.vy - qy * b.vx) / den;
+      if (t > 1e-12 && t < tmin && u >= 0 && u <= 1) { tmin = t; hit = i; hu = u; }
+    }
+    b.x += b.vx * tmin; b.y += b.vy * tmin; left -= tmin;
+    if (hit < 0) break;
+    const g = segs[hit], tx = g.ex / g.len, ty = g.ey / g.len, d = b.vx * tx + b.vy * ty;
+    b.vx = 2 * d * tx - b.vx; b.vy = 2 * d * ty - b.vy; b.last = hit;
+    b.trail.push([b.x, b.y]); const keep = cTrail() + 1; if (b.trail.length > keep) b.trail.splice(0, b.trail.length - keep);
+    bBounces++;
+    if (g.outer) birkDot((g.cum + hu * g.len) / g.total, b.vx * tx + b.vy * ty, b.color);
+  }
+}
+function renderClassical(dt) {
+  const w = fitCanvas(view), segs = billSegments();
+  vctx.fillStyle = rgb(C.void); vctx.fillRect(0, 0, w, w);
+  if (!segs) { $('overlay').textContent = 'classical billiards need a smooth outline: pick an exact or mesh shape'; return; }
+  vctx.fillStyle = '#fffef9'; pathFor(vctx, w); vctx.fill('evenodd'); vctx.strokeStyle = C.ink; vctx.globalAlpha = 0.6; vctx.lineWidth = Math.max(1, w / 320); pathFor(vctx, w); vctx.stroke(); vctx.globalAlpha = 1;
+  if (!balls.length && !bClearFlag) { const c = domain.geom.center || [0.5, 0.5]; addBall(c[0], c[1], Math.cos(0.7), Math.sin(0.7)); birkClear(); }
+  if (balls.length) bClearFlag = false;
+  if (!bPaused) for (const b of balls) stepBall(b, cSpeed() * dt, segs);
+  for (const b of balls) {
+    vctx.strokeStyle = b.color; vctx.lineWidth = Math.max(1, w / 500); vctx.globalAlpha = 0.55; vctx.beginPath();
+    b.trail.forEach(([x, y], i) => i ? vctx.lineTo(x * w, y * w) : vctx.moveTo(x * w, y * w)); vctx.lineTo(b.x * w, b.y * w); vctx.stroke(); vctx.globalAlpha = 1;
+    vctx.fillStyle = b.color; vctx.beginPath(); vctx.arc(b.x * w, b.y * w, Math.max(3, w / 140), 0, 2 * Math.PI); vctx.fill(); vctx.strokeStyle = '#fff'; vctx.lineWidth = 1; vctx.stroke();
+  }
+  if (qDrag) drawQArrow(w);
+  $('overlay').textContent = `classical billiard · ${balls.length} ball${balls.length > 1 ? 's' : ''}`;
+  $('cInfo').textContent = `${bBounces.toLocaleString()} bounces so far`;
+}
+function setBillMode(m) {
+  bmode = m; $('bmQ').classList.toggle('on', m === 'q'); $('bmC').classList.toggle('on', m === 'c');
+  $('qvSeg').hidden = $('qRestart').hidden = m === 'c'; $('cSide').hidden = m !== 'c'; $('qSide').hidden = m === 'c';
+  $('side-h').textContent = m === 'c' ? 'Classical billiard' : 'Quantum billiard'; $('sideSub').textContent = m === 'c' ? 'balls bouncing off the walls' : 'a particle trapped in the shape';
+  if (m === 'c') { balls = []; bBounces = 0; birkClear(); }
+}
+$('cFast').onclick = () => { const segs = billSegments(); if (!segs) return; for (const b of balls) { const target = bBounces + 2000; let guard = 0; while (bBounces < target && guard++ < 40) stepBall(b, 1e9, segs); } };
+$('bmQ').onclick = () => setBillMode('q'); $('bmC').onclick = () => setBillMode('c');
+$('cSpeed').addEventListener('input', cShowSliders); $('cTrail').addEventListener('input', cShowSliders); cShowSliders();
 function renderQuantum(dt) {
+  if (bmode === 'c') { renderClassical(dt); return; }
   const w = fitCanvas(view);
   if (!heat || (domain && resG !== G)) { blank('computing…'); return; }
   if (qEmpty) { blank('click inside the shape to drop a wave packet'); if (qDrag) drawQArrow(w); $('qInfo').textContent = ''; return; }
@@ -2198,7 +2280,7 @@ view.addEventListener('pointerdown', (e) => {
       else if (insideAt(ux, uy)) { const s = { x: ux, y: uy, T: +$('srcT').value }; s.nodes = sourceNodes(s); sources.push(s); selSrc = sources.length - 1; dragSrc = selSrc; clampSources(); }
       renderSources(); drawColorbar();
     } else heatPaint(ux, uy);
-  } else if (tab === 'quantum' && heat && insideAt(ux, uy)) qDrag = { x0: ux, y0: uy, x1: ux, y1: uy };
+  } else if (tab === 'quantum' && (bmode === 'c' ? domain && SH.inGeom(domain.polys, ux, uy) : heat && insideAt(ux, uy))) qDrag = { x0: ux, y0: uy, x1: ux, y1: uy };
 });
 view.addEventListener('pointermove', (e) => {
   if (viewDown && tab === 'quantum' && qDrag) { const [ux, uy] = unitAt(e); qDrag.x1 = ux; qDrag.y1 = uy; return; }
@@ -2206,7 +2288,14 @@ view.addEventListener('pointermove', (e) => {
   if (heatTool === 'source' && dragSrc >= 0) { if (insideAt(ux, uy)) { const s = sources[dragSrc]; for (const i of s.nodes) heat.u[i] = 0; s.x = ux; s.y = uy; s.nodes = sourceNodes(s); clampSources(); } }
   else if (heatTool === 'paint') heatPaint(ux, uy);
 });
-view.addEventListener('pointerup', () => { viewDown = false; dragSrc = -1; if (qDrag) { const [kx, ky] = qDragK(); qEmpty = false; qPacket(qDrag.x0, qDrag.y0, kx, ky); qDrag = null; } });
+view.addEventListener('pointerup', () => {
+  viewDown = false; dragSrc = -1;
+  if (qDrag) {
+    if (bmode === 'c' && domain) { const dx = qDrag.x1 - qDrag.x0, dy = qDrag.y1 - qDrag.y0, a = Math.random() * 2 * Math.PI; if (SH.inGeom(domain.polys, qDrag.x0, qDrag.y0)) addBall(qDrag.x0, qDrag.y0, Math.hypot(dx, dy) > 0.01 ? dx : Math.cos(a), Math.hypot(dx, dy) > 0.01 ? dy : Math.sin(a)); }
+    else { const [kx, ky] = qDragK(); qEmpty = false; qPacket(qDrag.x0, qDrag.y0, kx, ky); }
+    qDrag = null;
+  }
+});
 function setDrumView(v) {
   dview = v; $('dvDrum').classList.toggle('on', v === 'drum'); $('dvWave').classList.toggle('on', v === 'wave');
   $('waveMode').hidden = $('waveReset').hidden = v !== 'wave';
@@ -2237,6 +2326,7 @@ function setTab(t) {
   tab = t;
   const SIDE = { drum: ['Sound', 'what you hear from the last hit'], modes: ['Mode', 'the selected vibration pattern'], heat: ['Heat', 'temperature, edges held at 0°'], quantum: ['Quantum billiard', 'a particle trapped in the shape'], compare: ['vs undergrad thesis', 'the same shape solved four ways'] };
   $('side-h').textContent = SIDE[t][0]; $('sideSub').textContent = SIDE[t][1];
+  if (t === 'quantum') setBillMode(bmode);
   document.querySelectorAll('[data-side]').forEach((d) => { d.hidden = d.dataset.side !== t; });
   modesDirty = true; if (t === 'drum') drawSpectrum(); if (t === 'modes' || t === 'compare') showModeInfo();
   document.querySelectorAll('[role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
